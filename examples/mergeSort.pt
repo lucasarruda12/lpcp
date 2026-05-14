@@ -1,0 +1,66 @@
+PROCEDIMENTO copyList(&a :: [INT], &b :: [INT]):
+  INICIALIZE (i :: INT) COM 0;
+  ENQUANTO:
+    -> i < a.tam, FAÇA:
+      a[i] = b[i];
+      i++;
+      FIM_FAÇA.
+  FIM_ENQUANTO.
+FIM_PROCEDIMENTO.
+
+PROCEDIMENTO merge(
+    &a :: [INT], left :: INT, right :: INT, 
+    end :: INT, &b :: [INT]
+    ):
+    INICIALIZE (i :: INT) COM left;
+    INICIALIZE (j :: INT) COM right;
+    
+    INICIALIZE (k :: INT) COM left;
+
+    ENQUANTO:
+      -> k < end, FAÇA:
+        SE i < right AND (j >= end OR a[i] <= a[j]):
+          b[k] = a[i];
+          i = i + 1;
+        SENAO:
+          b[k] = a[j];
+          j = j + 1;
+        FIM_SE.
+        ++k;
+      FIM_FAÇA.
+    FIM_ENQUANTO.
+FIM_PROCEDIMENTO.
+
+PROCEDIMENTO mergeSort(&a :: [INT], &b :: [INT], n :: INT):
+  INICIALIZE (width :: INT) COM 1;
+  ENQUANTO
+    -> width < n, FAÇA:
+      INICIALIZE (i :: INT) COM 0;
+      ENQUANTO
+        -> i < n, FAÇA:
+          merge(a, i, min(i + width, n), min(i + 2 * width, n), b);
+          i = i + 2 * width;
+        FIM_FAÇA.
+      FIM_ENQUANTO.
+      copyList(b, a, n);
+    
+      width = width * 2;
+    FIM_FAÇA.
+  FIM_ENQUANTO.
+FIM_PROCEDIMENTO.
+
+PROCEDIMENTO main():
+  INICIALIZE (lista :: [INT]) COM [];
+  INICIALIZE (input :: String) COM ler();
+  
+  ENQUANTO:
+    -> input != "\d" FAÇA:
+      lista = lista.adiciona((INT) input);
+      input = ler();
+    FIM_FAÇA.
+  FIM_ENQUANTO.
+  
+  INICIALIZE (resultado :: [INT]) COM mergeSort(lista);
+  imprime(resultado);
+  
+FIM_PROCEDIMENTO.
