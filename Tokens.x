@@ -1,9 +1,8 @@
 {
-module Lexer (Token(..), tokenize) where
+module Lexer (Token(..), TokenKind(..), tokenize, position, kind) where
 
 import System.IO
 }
-
 %wrapper "posn"
 
 $digit = 0-9
@@ -33,7 +32,11 @@ tokens :-
   "!=" {\p _ -> Token p Diferente}
   "++" {\p _ -> Token p MaisMais}
   "+" {\p _ -> Token p Mais}
+  "-" {\p _ -> Token p Menos}
+  "/" {\p _ -> Token p Divide}
+  "%" {\p _ -> Token p Porcento}
   "*" {\p _ -> Token p Vezes}
+  "**" {\p _ -> Token p VezesVezes}
   "." {\p _ -> Token p Ponto}
   
   PROCEDIMENTO {\p _ -> Token p Procedimento}
@@ -56,11 +59,14 @@ tokens :-
 {
 -- Record Syntax: 
 -- devtut.github.io/haskell/record-syntax.html
-data Token = Token 
-  { position :: AlexPosn
-  , kind :: TokenKind
-  }
+data Token = Token AlexPosn TokenKind
   deriving (Show)
+
+position :: Token -> (Int, Int, Int)
+position (Token (AlexPn x y z) _) = (x, y, z)
+
+kind :: Token -> TokenKind
+kind (Token _ k) = k
 
 -- Não quero derivar o Show,
 -- porque se não os tokens só vão ser iguais se tiverem a mesma posição!
@@ -99,7 +105,11 @@ data TokenKind
   | IgualIgual 
   | Diferente 
   | Mais 
+  | Menos 
+  | Divide 
+  | Porcento 
   | Vezes 
+  | VezesVezes 
   | MaisMais 
   | MaiorQue 
   | MaiorIgual 
