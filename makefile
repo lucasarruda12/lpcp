@@ -2,8 +2,8 @@ GHC 		:= ghc -dynamic
 ALEX 		:= alex
 OUT_DIR := dist
 
-lexer: tokens.x
-	alex tokens.x -o dist/tokens.hs
-	$(GHC) -c dist/tokens.hs -outputdir dist
+lexer: Tokens.x
+	alex Tokens.x -o dist/Lexer.hs
+	$(GHC) -c dist/Lexer.hs -outputdir dist
 
 
