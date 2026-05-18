@@ -1,5 +1,7 @@
 {
-module Main (main, Token(..), AlexPosn(..), alexScanTokens) where
+module Lexer (Token(..), tokenize) where
+
+import System.IO
 }
 
 %wrapper "posn"
@@ -32,6 +34,7 @@ tokens :-
   "++" {\p s -> MaisMais p}
   "+" {\p s -> Mais p}
   "*" {\p s -> Vezes p}
+  "." {\p s -> Ponto p}
   
   PROCEDIMENTO {\p s -> Procedimento p}
   FIM_PROCEDIMENTO. {\p s -> FimProcedimento p}
@@ -80,6 +83,7 @@ data Token
   | LitString AlexPosn String
   | MenorQue AlexPosn 
   | Igual AlexPosn
+  | Ponto AlexPosn
   | IgualIgual AlexPosn
   | Diferente AlexPosn
   | Mais AlexPosn
@@ -91,8 +95,6 @@ data Token
   | AspasDuplas AlexPosn
   deriving (Eq, Show)
 
-main :: IO ()
-main = do
-  s <- getContents
-  print (alexScanTokens s)
+tokenize :: String -> [Token]
+tokenize = alexScanTokens
 }

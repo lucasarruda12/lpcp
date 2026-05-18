@@ -11,6 +11,6 @@ parseCSV input = parse csvFile "(unknown)" input
 
 mainParser :: String -> IO ()
 mainParser input = case parseCSV input of
-                  { Left err -> print err
-                  ; Right ans -> print ans
-                  }
+  { Left err -> print err
+  ; Right ans -> print ans
+  }

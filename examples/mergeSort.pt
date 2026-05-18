@@ -1,7 +1,7 @@
 PROCEDIMENTO copyList(&a :: [INT], &b :: [INT]):
   INICIALIZE (i :: INT) COM 0;
   ENQUANTO:
-    -> i < a.tam, FAÇA:
+    -> i < tam(a), FAÇA:
       a[i] = b[i];
       i++;
       FIM_FAÇA.
@@ -55,7 +55,7 @@ PROCEDIMENTO main():
   
   ENQUANTO:
     -> input != "\d" FAÇA:
-      lista = lista.adiciona((INT) input);
+      lista = adiciona(lista, (INT) input);
       input = ler();
     FIM_FAÇA.
   FIM_ENQUANTO.
