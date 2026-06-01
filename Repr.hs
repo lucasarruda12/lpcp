@@ -1,4 +1,4 @@
-module Program where
+module Repr where
 
 import Lexer
 
@@ -16,11 +16,26 @@ data Comando
   = Atribuicao Id Expr 
   | Inicializacao Id Expr
 
+-- == Tudo relacionado a expressões ==
+data OpBin
+  = Soma
+  | Sub
+  | Mul
+  | Div
+  | Exp
+  | Mod
+  deriving (Show)
+
+data OpUn
+  = Neg
+  deriving (Show)
+
 data Expr 
-  = Lit Token
-  | EVar Id
-  | EChamada Id [Expr]
-  | ESoma Expr Expr
+  = EInt Token
+  | EVar Token
+  | EString Token
+  | EChamada Token [Expr]
+  | EOpBin OpBin Expr Expr
+  | EOpUn OpUn Expr
   deriving(Show)
-
-
+-- ===================================

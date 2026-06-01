@@ -1,8 +1,9 @@
 module Parser where
 
 import Lexer
-import Program
-import Text.Parsec (Parsec(..), tokenPrim, chainl1, choice, many)
+import Repr
+import Text.Parsec
+import Text.Parsec.Expr
 
 token' :: TokenKind -> Parsec [Token] st Token
 token' (LitInt _) = tokenPrim show nextPos test
@@ -22,14 +23,36 @@ token' k = tokenPrim show nextPos test
     test t@(Token _ k') = if k == k' then Just t else Nothing
     nextPos pos _ _     = pos
 
+parens :: Parsec [Token] st a -> Parsec [Token] st a
+parens p = do
+  token' ParEsq
+  t <- p
+  token' ParDir
+  return t
+
+-- Documentação do buildExpressionParser:
+-- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
 expr :: Parsec [Token] st Expr
-expr = do
-  f <- factor
-  fs <- many $ do
-    token' VezesVezes
-    factor
-  pure (foldl (BinOp Exp) f fs)
+expr = buildExpressionParser table term
   where
-    factor :: Parsec [Token] st Expr
-    factor = Lit <$> (token' $ LitInt 0)
+    table =
+      [ [ Infix (token' VezesVezes >> pure (EOpBin Exp)) AssocRight
+        ]
+      , [ Infix (token' Vezes  >> pure (EOpBin Mul)) AssocLeft
+        , Infix (token' Divide >> pure (EOpBin Div)) AssocLeft
+        , Infix (token' Porcento >> pure (EOpBin Mod)) AssocLeft
+        ]
+      , [ Infix (token' Mais  >> pure (EOpBin Soma)) AssocLeft
+        , Infix (token' Menos >> pure (EOpBin Sub )) AssocLeft
+        ]
+      , [ Prefix (token' Menos  >> pure (EOpUn Neg))
+        ]
+      ]
+
+    term  = 
+      EInt <$> (token' (LitInt 0))
+      <|> EString <$> (token' (LitString ""))
+      <|> parens expr 
+      <|> EChamada <$> (token' (Id "")) <*> (token' ParEsq *> (sepBy expr (token' Virgula)) <* token' ParDir)
+      <|> EVar <$> (token' (Id ""))
   

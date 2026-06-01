@@ -32,6 +32,7 @@ tokens :-
   "+" {\p _ -> Token p Mais}
   "-" {\p _ -> Token p Menos}
   "/" {\p _ -> Token p Divide}
+  "|" {\p _ -> Token p Pipe}
   "%" {\p _ -> Token p Porcento}
   "*" {\p _ -> Token p Vezes}
   "**" {\p _ -> Token p VezesVezes}
@@ -96,6 +97,7 @@ data TokenKind
   | PontoVirgula 
   | Virgula 
   | LitInt Int
+  | LitBool Bool
   | LitString String
   | MenorQue  
   | Igual 
@@ -113,6 +115,7 @@ data TokenKind
   | MaiorIgual 
   | MenorIgual 
   | AspasDuplas 
+  | Pipe
   deriving (Eq, Show)
 
 tokenize :: String -> [Token]
