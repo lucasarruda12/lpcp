@@ -1,7 +1,5 @@
 {
 module Lexer (Token(..), TokenKind(..), tokenize, position, kind) where
-
-import System.IO
 }
 %wrapper "posn"
 

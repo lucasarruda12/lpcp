@@ -1,6 +1,7 @@
 module Parser where
 
 import Lexer
+import Program
 import Text.Parsec (Parsec(..), tokenPrim, chainl1, choice, many)
 
 token' :: TokenKind -> Parsec [Token] st Token
@@ -21,12 +22,14 @@ token' k = tokenPrim show nextPos test
     test t@(Token _ k') = if k == k' then Just t else Nothing
     nextPos pos _ _     = pos
 
-expr :: Parsec [Token] st [Token]
+expr :: Parsec [Token] st Expr
 expr = do
   f <- factor
-  fs <- (fmap concat) . many . sequenceA $ [token' VezesVezes, factor]
-  pure (f : fs)
-
+  fs <- many $ do
+    token' VezesVezes
+    factor
+  pure (foldl (BinOp Exp) f fs)
   where
-    factor = token' $ LitInt 3
+    factor :: Parsec [Token] st Expr
+    factor = Lit <$> (token' $ LitInt 0)
   
