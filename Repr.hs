@@ -13,8 +13,10 @@ data Descritor
   = DInt Int
 
 data Comando 
-  = Atribuicao Id Expr 
-  | Inicializacao Id Expr
+  = Atribuicao Token Expr 
+  | Inicializacao Token Token Expr
+  | Declaracao Token Token
+  deriving (Show)
 
 -- == Tudo relacionado a expressões ==
 data OpBin

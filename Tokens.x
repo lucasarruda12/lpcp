@@ -50,6 +50,7 @@ tokens :-
   FIM_FACA. {\p _ -> Token p FimFaca}
   FIM_SE. {\p _ -> Token p FimSe}
   INICIALIZE {\p _ -> Token p Inicialize}
+  DECLARE {\p _ -> Token p Declare}
   INT {\p s -> Token p (Tipo s)}
   COM {\p _ -> Token p Com}
   \"([^\"\\]|\\.)*\" { \p s -> Token p (LitString s)}
@@ -116,6 +117,7 @@ data TokenKind
   | MenorIgual 
   | AspasDuplas 
   | Pipe
+  | Declare
   deriving (Eq, Show)
 
 tokenize :: String -> [Token]

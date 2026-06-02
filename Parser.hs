@@ -30,6 +30,41 @@ parens p = do
   token' ParDir
   return t
 
+-- Isso não tá legal
+tipo :: Parsec [Token] st Token
+tipo = token' (Id "")
+
+-- Usa esse aqui como exemplo!
+atribuicao :: Parsec [Token] st Comando
+atribuicao = do
+  id <- token' (Id "")
+  token' Igual
+  e <- expr
+  return (Atribuicao id e)
+
+inicializacao :: Parsec [Token] st Comando
+inicializacao = do
+  token' Inicialize
+  id <- token' (Id "")
+  token' QuatroPontos
+  t <- tipo
+  token' Com
+  e <- expr
+  token' PontoVirgula
+  return (Inicializacao id t e)
+
+declaracao :: Parsec [Token] st Comando
+declaracao = do
+  token' Declare
+  id <- token' (Id "")
+  token' QuatroPontos
+  t <- tipo
+  token' PontoVirgula
+  return (Declaracao id t)
+
+comando :: Parsec [Token] st Comando
+comando = atribuicao <|> inicializacao <|> declaracao
+
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
 expr :: Parsec [Token] st Expr
