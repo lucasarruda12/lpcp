@@ -1,5 +1,5 @@
 {
-module Lexer (Token(..), TokenKind(..), tokenize, position, kind) where
+module Lexer (Token(..), TokenKind(..), tokenize, position, kind, AlexPosn(..)) where
 }
 %wrapper "posn"
 

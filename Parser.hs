@@ -5,89 +5,115 @@ import Repr
 import Text.Parsec
 import Text.Parsec.Expr
 
-token' :: TokenKind -> Parsec [Token] st Token
-token' (LitInt _) = tokenPrim show nextPos test
+type Parser a = Parsec [Token] () a
+
+-- Tem muito token que eu não me importo com o resultado.
+-- Procedimento, Fim_Procedimento... não me interessa o que que tem lá dentro
+-- (até porque não tem nada)
+-- Esse parser joga fora toda a informação de um token
+-- (menos a posição)
+tokenP :: TokenKind -> Parser AlexPosn
+tokenP k = tokenPrim show nextPos test
    where
-    test t@(Token _ (LitInt _)) = Just t
+    test t@(Token p k')
+      | k == k'   = Just p
+      | otherwise = Nothing
+    nextPos pos _ _     = pos
+
+idP :: Parser Id
+idP = tokenPrim show nextPos test
+  where
+    test (Token p (Id s)) = Just (IdR (Pos p p) s)
     test _ = Nothing
-    nextPos pos _ _     = pos
+    nextPos pos _ _ = pos
 
-token' (Id _) = tokenPrim show nextPos test
-   where
-    test t@(Token _ (Id _)) = Just t
-    test _ = Nothing
-    nextPos pos _ _     = pos
+litP :: Parser Lit
+litP = litIntP <|> litStringP
+  where
+    nextPos pos _ _ = pos
 
-token' k = tokenPrim show nextPos test
-   where
-    test t@(Token _ k') = if k == k' then Just t else Nothing
-    nextPos pos _ _     = pos
+    litIntP = tokenPrim show nextPos testInt
+    testInt (Token p (LitInt x)) = Just (LInt (Pos p p) x)
+    testInt _ = Nothing
 
-parens :: Parsec [Token] st a -> Parsec [Token] st a
+    litStringP = tokenPrim show nextPos testString
+    testString (Token p (LitString s)) = Just (LString (Pos p p) s)
+    testString _ = Nothing
+
+    -- Falta ter tokens para booleanos
+
+parens :: Parser a -> Parser a
 parens p = do
-  token' ParEsq
+  tokenP ParEsq
   t <- p
-  token' ParDir
+  tokenP ParDir
   return t
-
+ 
 -- Isso não tá legal
-tipo :: Parsec [Token] st Token
-tipo = token' (Id "")
-
+tipoP :: Parser Tipo
+tipoP = idP
+ 
 -- Usa esse aqui como exemplo!
-atribuicao :: Parsec [Token] st Comando
+atribuicao :: Parser Comando
 atribuicao = do
-  id <- token' (Id "")
-  token' Igual
-  e <- expr
-  return (Atribuicao id e)
+  id <- idP
+  tokenP Igual
+  e <- exprP
+  return (Atribuicao (mergePos id e)  id e)
 
-inicializacao :: Parsec [Token] st Comando
+inicializacao :: Parser Comando
 inicializacao = do
-  token' Inicialize
-  id <- token' (Id "")
-  token' QuatroPontos
-  t <- tipo
-  token' Com
-  e <- expr
-  token' PontoVirgula
-  return (Inicializacao id t e)
-
-declaracao :: Parsec [Token] st Comando
+  start <- tokenP Inicialize
+  id <- idP
+  tokenP QuatroPontos
+  t <- tipoP
+  tokenP Com
+  e <- exprP
+  end <- tokenP PontoVirgula
+  return (Inicializacao (Pos start end) id t e)
+ 
+declaracao :: Parser Comando
 declaracao = do
-  token' Declare
-  id <- token' (Id "")
-  token' QuatroPontos
-  t <- tipo
-  token' PontoVirgula
-  return (Declaracao id t)
-
-comando :: Parsec [Token] st Comando
+  start <- tokenP Declare
+  id <- idP
+  tokenP QuatroPontos
+  t <- tipoP
+  end <- tokenP PontoVirgula
+  return (Declaracao (Pos start end) id t)
+ 
+comando :: Parser Comando
 comando = atribuicao <|> inicializacao <|> declaracao
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
-expr :: Parsec [Token] st Expr
-expr = buildExpressionParser table term
+exprP :: Parser Expr
+exprP = buildExpressionParser table term
   where
     table =
-      [ [ Infix (token' VezesVezes >> pure (EOpBin Exp)) AssocRight
+      [ [ Infix (binOpP VezesVezes Exp) AssocRight
         ]
-      , [ Infix (token' Vezes  >> pure (EOpBin Mul)) AssocLeft
-        , Infix (token' Divide >> pure (EOpBin Div)) AssocLeft
-        , Infix (token' Porcento >> pure (EOpBin Mod)) AssocLeft
+      , [ Infix (binOpP Vezes Mul) AssocLeft
+        , Infix (binOpP Divide Div) AssocLeft
+        , Infix (binOpP Porcento Mod) AssocLeft
         ]
-      , [ Infix (token' Mais  >> pure (EOpBin Soma)) AssocLeft
-        , Infix (token' Menos >> pure (EOpBin Sub )) AssocLeft
+      , [ Infix (binOpP Mais Soma) AssocLeft
+        , Infix (binOpP Menos Sub) AssocLeft
         ]
-      , [ Prefix (token' Menos  >> pure (EOpUn Neg))
+      , [ Prefix (unOpP Menos Neg)
         ]
       ]
 
-    term  = 
-      EInt <$> (token' (LitInt 0))
-      <|> EString <$> (token' (LitString ""))
-      <|> parens expr 
-      <|> EChamada <$> (token' (Id "")) <*> (token' ParEsq *> (sepBy expr (token' Virgula)) <* token' ParDir)
-      <|> EVar <$> (token' (Id ""))
-  
+    binOpP tk op = do
+      tokenP tk
+      pure $ \l r -> 
+        EOpBin (mergePos l r) op l r
+
+    unOpP tk op = do
+      tokenP tk
+      pure $ \e -> EOpUn (getPos e) op e
+
+    term = ELit <$> litP
+      -- <|> parens exprP 
+      --
+      -- <|> EChamada <$> id <*> (token' ParEsq *> (sepBy exprP (token' Virgula)) <* token' ParDir)
+      -- <|> (EVar . fst) <$> idP
