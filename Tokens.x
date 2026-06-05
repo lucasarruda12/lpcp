@@ -1,7 +1,5 @@
 {
-module Lexer (Token(..), TokenKind(..), tokenize, position, kind) where
-
-import System.IO
+module Lexer (Token(..), TokenKind(..), tokenize, position, kind, AlexPosn(..)) where
 }
 %wrapper "posn"
 
@@ -34,6 +32,7 @@ tokens :-
   "+" {\p _ -> Token p Mais}
   "-" {\p _ -> Token p Menos}
   "/" {\p _ -> Token p Divide}
+  "|" {\p _ -> Token p Pipe}
   "%" {\p _ -> Token p Porcento}
   "*" {\p _ -> Token p Vezes}
   "**" {\p _ -> Token p VezesVezes}
@@ -51,6 +50,7 @@ tokens :-
   FIM_FACA. {\p _ -> Token p FimFaca}
   FIM_SE. {\p _ -> Token p FimSe}
   INICIALIZE {\p _ -> Token p Inicialize}
+  DECLARE {\p _ -> Token p Declare}
   INT {\p s -> Token p (Tipo s)}
   COM {\p _ -> Token p Com}
   \"([^\"\\]|\\.)*\" { \p s -> Token p (LitString s)}
@@ -98,6 +98,7 @@ data TokenKind
   | PontoVirgula 
   | Virgula 
   | LitInt Int
+  | LitBool Bool
   | LitString String
   | MenorQue  
   | Igual 
@@ -115,6 +116,8 @@ data TokenKind
   | MaiorIgual 
   | MenorIgual 
   | AspasDuplas 
+  | Pipe
+  | Declare
   deriving (Eq, Show)
 
 tokenize :: String -> [Token]

@@ -1,32 +1,119 @@
 module Parser where
 
 import Lexer
-import Text.Parsec (Parsec(..), tokenPrim, chainl1, choice, many)
+import Repr
+import Text.Parsec
+import Text.Parsec.Expr
 
-token' :: TokenKind -> Parsec [Token] st Token
-token' (LitInt _) = tokenPrim show nextPos test
+type Parser a = Parsec [Token] () a
+
+-- Tem muito token que eu não me importo com o resultado.
+-- Procedimento, Fim_Procedimento... não me interessa o que que tem lá dentro
+-- (até porque não tem nada)
+-- Esse parser joga fora toda a informação de um token
+-- (menos a posição)
+tokenP :: TokenKind -> Parser AlexPosn
+tokenP k = tokenPrim show nextPos test
    where
-    test t@(Token _ (LitInt _)) = Just t
-    test _ = Nothing
+    test t@(Token p k')
+      | k == k'   = Just p
+      | otherwise = Nothing
     nextPos pos _ _     = pos
 
-token' (Id _) = tokenPrim show nextPos test
-   where
-    test t@(Token _ (Id _)) = Just t
-    test _ = Nothing
-    nextPos pos _ _     = pos
-
-token' k = tokenPrim show nextPos test
-   where
-    test t@(Token _ k') = if k == k' then Just t else Nothing
-    nextPos pos _ _     = pos
-
-expr :: Parsec [Token] st [Token]
-expr = do
-  f <- factor
-  fs <- (fmap concat) . many . sequenceA $ [token' VezesVezes, factor]
-  pure (f : fs)
-
+idP :: Parser Id
+idP = tokenPrim show nextPos test
   where
-    factor = token' $ LitInt 3
-  
+    test (Token p (Id s)) = Just (IdR (Pos p p) s)
+    test _ = Nothing
+    nextPos pos _ _ = pos
+
+litP :: Parser Lit
+litP = litIntP <|> litStringP
+  where
+    nextPos pos _ _ = pos
+
+    litIntP = tokenPrim show nextPos testInt
+    testInt (Token p (LitInt x)) = Just (LInt (Pos p p) x)
+    testInt _ = Nothing
+
+    litStringP = tokenPrim show nextPos testString
+    testString (Token p (LitString s)) = Just (LString (Pos p p) s)
+    testString _ = Nothing
+
+    -- Falta ter tokens para booleanos
+
+parens :: Parser a -> Parser a
+parens p = do
+  tokenP ParEsq
+  t <- p
+  tokenP ParDir
+  return t
+ 
+-- Isso não tá legal
+tipoP :: Parser Tipo
+tipoP = idP
+ 
+-- Usa esse aqui como exemplo!
+atribuicao :: Parser Comando
+atribuicao = do
+  id <- idP
+  tokenP Igual
+  e <- exprP
+  return (Atribuicao (mergePos id e)  id e)
+
+inicializacao :: Parser Comando
+inicializacao = do
+  start <- tokenP Inicialize
+  id <- idP
+  tokenP QuatroPontos
+  t <- tipoP
+  tokenP Com
+  e <- exprP
+  end <- tokenP PontoVirgula
+  return (Inicializacao (Pos start end) id t e)
+ 
+declaracao :: Parser Comando
+declaracao = do
+  start <- tokenP Declare
+  id <- idP
+  tokenP QuatroPontos
+  t <- tipoP
+  end <- tokenP PontoVirgula
+  return (Declaracao (Pos start end) id t)
+ 
+comando :: Parser Comando
+comando = atribuicao <|> inicializacao <|> declaracao
+
+-- Documentação do buildExpressionParser:
+-- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
+exprP :: Parser Expr
+exprP = buildExpressionParser table term
+  where
+    table =
+      [ [ Infix (binOpP VezesVezes Exp) AssocRight
+        ]
+      , [ Infix (binOpP Vezes Mul) AssocLeft
+        , Infix (binOpP Divide Div) AssocLeft
+        , Infix (binOpP Porcento Mod) AssocLeft
+        ]
+      , [ Infix (binOpP Mais Soma) AssocLeft
+        , Infix (binOpP Menos Sub) AssocLeft
+        ]
+      , [ Prefix (unOpP Menos Neg)
+        ]
+      ]
+
+    binOpP tk op = do
+      tokenP tk
+      pure $ \l r -> 
+        EOpBin (mergePos l r) op l r
+
+    unOpP tk op = do
+      tokenP tk
+      pure $ \e -> EOpUn (getPos e) op e
+
+    term = ELit <$> litP
+      -- <|> parens exprP 
+      --
+      -- <|> EChamada <$> id <*> (token' ParEsq *> (sepBy exprP (token' Virgula)) <* token' ParDir)
+      -- <|> (EVar . fst) <$> idP
