@@ -53,6 +53,10 @@ tokens :-
   DECLARE {\p _ -> Token p Declare}
   INT {\p s -> Token p (Tipo s)}
   COM {\p _ -> Token p Com}
+
+  -- adicionando BOOLS --
+  VERDADEIRO {\p _ -> Token p (LitBool True)}
+  FALSO      {\p _ -> Token p (LitBool False)}
   \"([^\"\\]|\\.)*\" { \p s -> Token p (LitString s)}
 
   $alpha [$alpha $digit \_ \']* {\p s -> Token p (Id s)}

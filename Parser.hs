@@ -4,6 +4,8 @@ import Lexer
 import Repr
 import Text.Parsec
 import Text.Parsec.Expr
+import Text.Parsec (tokenPrim)
+import Data.Maybe (Maybe(Nothing))
 
 type Parser a = Parsec [Token] () a
 
@@ -28,7 +30,7 @@ idP = tokenPrim show nextPos test
     nextPos pos _ _ = pos
 
 litP :: Parser Lit
-litP = litIntP <|> litStringP
+litP = litIntP <|> litStringP <|> litBoolP
   where
     nextPos pos _ _ = pos
 
@@ -41,6 +43,12 @@ litP = litIntP <|> litStringP
     testString _ = Nothing
 
     -- Falta ter tokens para booleanos
+
+    litBoolP = tokenPrim show nextPos testBool
+
+    testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
+    testBool _ = Nothing
+
 
 parens :: Parser a -> Parser a
 parens p = do
@@ -113,7 +121,7 @@ exprP = buildExpressionParser table term
       pure $ \e -> EOpUn (getPos e) op e
 
     term = ELit <$> litP
-      -- <|> parens exprP 
-      --
-      -- <|> EChamada <$> id <*> (token' ParEsq *> (sepBy exprP (token' Virgula)) <* token' ParDir)
-      -- <|> (EVar . fst) <$> idP
+      
+        <|> EVar <$> idP
+        <|> parens exprP 
+
