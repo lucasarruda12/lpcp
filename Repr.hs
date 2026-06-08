@@ -28,6 +28,9 @@ data Comando
   = Atribuicao Pos Id Expr 
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
+  | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
+  | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
+  
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==
