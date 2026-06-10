@@ -6,6 +6,7 @@ import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec (tokenPrim)
 import Data.Maybe (Maybe(Nothing))
+import Data.Maybe (isJust)
 import Text.XHtml (start)
 
 type Parser a = Parsec [Token] () a
@@ -114,8 +115,31 @@ enquanto = do
   tokenP FimFaca
   end <- tokenP FimEnquanto
   return(EnquantoCmd (Pos start end) cond cmdsThen)
+
+procedimento :: Parser Comando
+procedimento = do
+  start <- tokenP Procedimento
+  id <- idP
+  paresq <- tokenP ParEsq
+  parametros <- sepBy parametroP (tokenP Virgula)
+  pardir <- tokenP ParDir
+  tokenP DoisPontos
+  cmds <- many comando
+  end <- tokenP FimProcedimento
+  return (ProcedimentoCmd (Pos start end) id parametros cmds)
+
+
+
 comando :: Parser Comando
 comando = atribuicao <|> inicializacao <|> declaracao <|> se <|> enquanto
+
+parametroP :: Parser Parametro
+parametroP = do
+  ref <- optionMaybe(tokenP EComercial)
+  id <- idP
+  tokenP QuatroPontos
+  t <- tipoP
+  return(Parametro id t (isJust ref))
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
