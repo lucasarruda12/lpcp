@@ -27,13 +27,24 @@ type Tipo = Id
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
   deriving(Show)
 
+--- ⚠⚠⚠  ☢☢parte que corrigi GERALDO OLHE ISSO CEGO ☢☢ ☣☣---
+
+data Programa 
+  = Programa = [Procedimento]
+  deriving(Show)
+
+data Procedimento  
+  = Procedimento Pos Id [Parametro] [Comando]
+  deriving(Show)
+
+--- 🗿🗿🗿parte que corrigi GERALDO OLHE ISSO CEGO ⛔⛔⛔ ---
 data Comando
   = Atribuicao Pos Id Expr 
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
   | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
   | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
-  | ProcedimentoCmd Pos Id [Parametro] [Comando]
+  
   
   deriving (Show)
 

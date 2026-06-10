@@ -116,7 +116,12 @@ enquanto = do
   end <- tokenP FimEnquanto
   return(EnquantoCmd (Pos start end) cond cmdsThen)
 
-procedimento :: Parser Comando
+
+--- ⛔⛔⛔ ⚠⚠⚠CRIA O PARSER DO PROGRAMA AQUI ☣☣☣⛔⛔⛔---
+programa :: Parser
+
+
+procedimento :: Parser Procedimento
 procedimento = do
   start <- tokenP Procedimento
   id <- idP
@@ -126,7 +131,7 @@ procedimento = do
   tokenP DoisPontos
   cmds <- many comando
   end <- tokenP FimProcedimento
-  return (ProcedimentoCmd (Pos start end) id parametros cmds)
+  return (Procedimento (Pos start end) id parametros cmds)
 
 
 
