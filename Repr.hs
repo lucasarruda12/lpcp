@@ -26,15 +26,26 @@ type Tipo = Id
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
   deriving(Show)
+--- criei isso aqui tambem mas tem que conferir se está correto
+
+
+
 
 --- ⚠⚠⚠  ☢☢parte que corrigi GERALDO OLHE ISSO CEGO ☢☢ ☣☣---
+--- criei isso aqui tambem mas tem que conferir se está correto
+data TopLevel
+  = TLProcedimento ProcedimentoR
+  | TLComando Comando
+  deriving (Show)
 
-data Programa 
-  = Programa = [Procedimento]
-  deriving(Show)
+data Programa = Programa [TopLevel]
+  deriving (Show)
 
-data Procedimento  
-  = Procedimento Pos Id [Parametro] [Comando]
+
+
+
+data ProcedimentoR
+  = ProcedimentoR Pos Id [Parametro] [Comando]
   deriving(Show)
 
 --- 🗿🗿🗿parte que corrigi GERALDO OLHE ISSO CEGO ⛔⛔⛔ ---

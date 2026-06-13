@@ -60,8 +60,14 @@ parens p = do
   return t
  
 -- Isso não tá legal
+
+-- ⛔⛔⛔ LUCAS OLHA AQUI ⛔⛔⛔
 tipoP :: Parser Tipo
-tipoP = idP
+tipoP = tokenPrim show nextPos test
+  where
+    test (Token p (Tipo s)) = Just (IdR (Pos p p) s)
+    test _ = Nothing
+    nextPos pos _ _ = pos
  
 -- Usa esse aqui como exemplo!
 atribuicao :: Parser Comando
@@ -118,11 +124,19 @@ enquanto = do
 
 
 --- ⛔⛔⛔ ⚠⚠⚠CRIA O PARSER DO PROGRAMA AQUI ☣☣☣⛔⛔⛔---
-programa :: Parser
+topLevelP :: Parser TopLevel
+topLevelP = 
+    (TLProcedimento <$> procedimentoP)
+   <|> (TLComando <$> comando)
+programa :: Parser Programa
+programa = do
+  tls <- many topLevelP
+  eof
+  return (Programa tls)  
 
 
-procedimento :: Parser Procedimento
-procedimento = do
+procedimentoP :: Parser ProcedimentoR
+procedimentoP = do
   start <- tokenP Procedimento
   id <- idP
   paresq <- tokenP ParEsq
@@ -131,7 +145,7 @@ procedimento = do
   tokenP DoisPontos
   cmds <- many comando
   end <- tokenP FimProcedimento
-  return (Procedimento (Pos start end) id parametros cmds)
+  return (ProcedimentoR (Pos start end) id parametros cmds)
 
 
 
