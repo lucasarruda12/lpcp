@@ -147,10 +147,14 @@ procedimentoP = do
   end <- tokenP FimProcedimento
   return (ProcedimentoR (Pos start end) id parametros cmds)
 
-
-
 comando :: Parser Comando
-comando = atribuicao <|> inicializacao <|> declaracao <|> se <|> enquanto
+comando =
+       incremento
+   <|> atribuicao
+   <|> inicializacao
+   <|> declaracao
+   <|> se
+   <|> enquanto
 
 parametroP :: Parser Parametro
 parametroP = do
@@ -159,6 +163,28 @@ parametroP = do
   tokenP QuatroPontos
   t <- tipoP
   return(Parametro id t (isJust ref))
+
+chamadaP :: Parser Expr
+chamadaP = do
+  f <- idP
+  tokenP ParEsq
+  args <- sepBy exprP (tokenP Virgula)
+  tokenP ParDir
+  return (EChamada (getPos f) f args)
+
+indiceP :: Parser Expr
+indiceP = do
+  v <- idP
+  tokenP ColEsq
+  idx <- exprP
+  tokenP ColDir
+  return (EIndice (mergePos v idx) (EVar v) idx)
+
+incremento = do
+  id <- idP
+  tokenP MaisMais
+  tokenP PontoVirgula
+  return (Incremento (getPos id) id)
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
@@ -176,6 +202,14 @@ exprP = buildExpressionParser table term
         , Infix (binOpP Menos Sub) AssocLeft
         ]
       , [ Prefix (unOpP Menos Neg)
+        ] 
+      , [ Infix (binOpP MenorQue Menor) AssocNone
+        , Infix (binOpP MaiorQue Maior) AssocNone
+        , Infix (binOpP MenorIgual MenorIgualOp) AssocNone
+        , Infix (binOpP MaiorIgual MaiorIgualOp) AssocNone
+        ]
+      , [ Infix (binOpP IgualIgual IgualOp) AssocNone
+        , Infix (binOpP Diferente DiferenteOp) AssocNone
         ]
       ]
 
@@ -188,8 +222,9 @@ exprP = buildExpressionParser table term
       tokenP tk
       pure $ \e -> EOpUn (getPos e) op e
 
-    term = ELit <$> litP
-      
-        <|> EVar <$> idP
-        <|> parens exprP 
-
+    term =
+        try chamadaP
+    <|> try indiceP
+    <|> ELit <$> litP
+    <|> EVar <$> idP
+    <|> parens exprP

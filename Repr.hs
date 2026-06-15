@@ -48,15 +48,15 @@ data ProcedimentoR
   = ProcedimentoR Pos Id [Parametro] [Comando]
   deriving(Show)
 
---- 🗿🗿🗿parte que corrigi GERALDO OLHE ISSO CEGO ⛔⛔⛔ ---
+--- ISRAEL, ME MAME 51! vezes tlgd ---
 data Comando
   = Atribuicao Pos Id Expr 
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
   | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
+  | Incremento Pos Id
   | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
-  
-  
+  | Incremento Pos Id
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==
@@ -67,6 +67,12 @@ data OpBin
   | Div
   | Exp
   | Mod
+  | Menor
+  | Maior
+  | MenorIgualOp
+  | MaiorIgualOp
+  | IgualOp
+  | DiferenteOp
   deriving (Show)
 
 data OpUn
@@ -87,7 +93,8 @@ instance Positional Lit where
 data Expr
   = ELit Lit
   | EVar Id
-  | EChamada Pos Token [Expr]
+  | EChamada Pos Id [Expr]
+  | EIndice Pos Expr Expr
   | EOpBin Pos OpBin Expr Expr
   | EOpUn Pos OpUn Expr
   deriving(Show)
@@ -96,6 +103,7 @@ instance Positional Expr where
   getPos (ELit l) = getPos l
   getPos (EVar (IdR p _)) = p
   getPos (EChamada p _ _) = p
+  getPos (EIndice p _ _) = p
   getPos (EOpBin p _ _ _) = p
   getPos (EOpUn p _ _) = p
 -- ===================================
@@ -104,4 +112,3 @@ instance Positional Expr where
 -- data Funcao = MkFuncao Id [Argumento] [Comando] Descritor
 -- data Procedimento = MkProcedimento Id [Argumento] [Comando]
 -- type Programa = [Comando]
-
