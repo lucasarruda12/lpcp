@@ -202,6 +202,7 @@ exprP = buildExpressionParser table term
         , Infix (binOpP Menos Sub) AssocLeft
         ]
       , [ Prefix (unOpP Menos Neg)
+        , Prefix (unOpP NaoLogico NaoOp)
         ] 
       , [ Infix (binOpP MenorQue Menor) AssocNone
         , Infix (binOpP MaiorQue Maior) AssocNone
@@ -211,6 +212,10 @@ exprP = buildExpressionParser table term
       , [ Infix (binOpP IgualIgual IgualOp) AssocNone
         , Infix (binOpP Diferente DiferenteOp) AssocNone
         ]
+      , [ Infix (binOpP ELogico AndOp) AssocLeft
+        ] 
+      , [ Infix (binOpP OuLogico OrOp) AssocLeft
+        ]   
       ]
 
     binOpP tk op = do
@@ -224,7 +229,8 @@ exprP = buildExpressionParser table term
 
     term =
         try chamadaP
-    <|> try indiceP
-    <|> ELit <$> litP
-    <|> EVar <$> idP
-    <|> parens exprP
+        <|> try indiceP
+        <|> ELit <$> litP
+        <|> EVar <$> idP
+        <|> parens exprP
+-- TEM QUE IDENTAR GERALDO

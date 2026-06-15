@@ -59,6 +59,11 @@ tokens :-
   FALSO      {\p _ -> Token p (LitBool False)}
   \"([^\"\\]|\\.)*\" { \p s -> Token p (LitString s)}
 
+  -- OPERADORES LOGICOS
+  AND    {\p _ -> Token p ELogico}
+  OR   {\p _ -> Token p OuLogico}
+  NOT  {\p _ -> Token p NaoLogico}
+
   $alpha [$alpha $digit \_ \']* {\p s -> Token p (Id s)}
 {
 -- Record Syntax: 
@@ -104,6 +109,9 @@ data TokenKind
   | LitInt Int
   | LitBool Bool
   | LitString String
+  | ELogico
+  | OuLogico
+  | NaoLogico
   | MenorQue  
   | Igual 
   | Ponto 
@@ -122,6 +130,7 @@ data TokenKind
   | AspasDuplas 
   | Pipe
   | Declare
+
   deriving (Eq, Show)
 
 tokenize :: String -> [Token]
