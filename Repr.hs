@@ -54,14 +54,21 @@ data Atribuendo
   = AId Id
   | AArray Id Expr
   | ARef Id
+  deriving (Show)
+
+instance Positional Atribuendo where
+  getPos (AId id) = getPos id
+  getPos (AArray id e) = mergePos id e
+  getPos (ARef id) = getPos id
 
 data Comando
-  = Atribuicao Pos Atribuendo ExpId Expr
+  = Atribuicao Pos Atribuendo Expr
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
   | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
   | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
   | Incremento Pos Id
+  | ImprimaCmd Pos Expr
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==

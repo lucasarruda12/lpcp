@@ -72,8 +72,10 @@ tipoP = TId <$> idP <|> (do
   return $ TList t)
 
 atribuendoP :: Parser Atribuendo
-atribuendoP = do
-  
+atribuendoP =
+      try (AId <$> idP) 
+  <|> try (AArray <$> idP <*> exprP) 
+  <|> try (ARef <$> idP <* tokenP Vezes)
  
 -- Usa esse aqui como exemplo!
 atribuicao :: Parser Comando
@@ -159,11 +161,18 @@ procedimentoP = do
   end <- tokenP FimProcedimento
   return (ProcedimentoR (Pos start end) id parametros cmds)
 
+imprimaP :: Parser Comando
+imprimaP = do
+  start <- tokenP Imprima
+  e <- exprP
+  end <- tokenP PontoVirgula
+  return (ImprimaCmd (Pos start end) e)
+
 comando :: Parser Comando
 comando =
-       try (atribuicaoArrayP)
-   <|> try (incremento)
+   try (incremento)
    <|> try (atribuicao)
+   <|> imprimaP
    <|> inicializacao
    <|> declaracao
    <|> se

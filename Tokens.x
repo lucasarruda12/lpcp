@@ -53,6 +53,7 @@ tokens :-
   DECLARE {\p _ -> Token p Declare}
   INT {\p s -> Token p (Tipo s)}
   COM {\p _ -> Token p Com}
+  IMPRIMA {\p _ -> Token p Imprima}
 
   -- adicionando BOOLS --
   VERDADEIRO {\p _ -> Token p (LitBool True)}
@@ -85,6 +86,7 @@ instance Eq Token where
 data TokenKind
   = Procedimento    
   | FimProcedimento    
+  | Imprima
   | Enquanto    
   | FimEnquanto    
   | Faca    
