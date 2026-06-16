@@ -9,15 +9,18 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Maybe (isJust)
 import Text.XHtml (start)
 
--- Adicionar os P depois dos parser -> parserP
-
 type Parser a = Parsec [Token] () a
 
--- Tem muito token que eu não me importo com o resultado.
--- Procedimento, Fim_Procedimento... não me interessa o que que tem lá dentro
--- (até porque não tem nada)
--- Esse parser joga fora toda a informação de um token
--- (menos a posição)
+---------------------------------------
+-- Helpers ----------------------------
+parens :: Parser a -> Parser a
+parens p = do
+  tokenP ParEsq
+  t <- p
+  tokenP ParDir
+  return t
+
+-- Joga fora o Token
 tokenP :: TokenKind -> Parser AlexPosn
 tokenP k = tokenPrim show nextPos test
    where
@@ -25,6 +28,8 @@ tokenP k = tokenPrim show nextPos test
       | k == k'   = Just p
       | otherwise = Nothing
     nextPos pos _ _     = pos
+---------------------------------------
+---------------------------------------
 
 idP :: Parser Id
 idP = tokenPrim show nextPos test
@@ -46,24 +51,10 @@ litP = litIntP <|> litStringP <|> litBoolP
     testString (Token p (LitString s)) = Just (LString (Pos p p) s)
     testString _ = Nothing
 
-    -- Falta ter tokens para booleanos
-
     litBoolP = tokenPrim show nextPos testBool
-
     testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
     testBool _ = Nothing
-
-
-parens :: Parser a -> Parser a
-parens p = do
-  tokenP ParEsq
-  t <- p
-  tokenP ParDir
-  return t
  
--- Isso não tá legal
--- ⛔⛔⛔ LUCAS OLHA AQUI ⛔⛔⛔
--- Parsear um Id e depois levar pros constrututores corretos de Tipo
 tipoP :: Parser Tipo
 tipoP = TId <$> idP <|> (do
   tokenP ColEsq
@@ -71,83 +62,104 @@ tipoP = TId <$> idP <|> (do
   tokenP ColDir
   return $ TList t)
 
-atribuendoP :: Parser Atribuendo
-atribuendoP =
-      try (AId <$> idP) 
-  <|> try (AArray <$> idP <*> exprP) 
-  <|> try (ARef <$> idP <* tokenP Vezes)
- 
--- Usa esse aqui como exemplo!
-atribuicao :: Parser Comando
-atribuicao = do
-  lvalue <- atribuendoP
-  tokenP Igual
-  e <- exprP
-  tokenP PontoVirgula
-  return (Atribuicao (mergePos lvalue e)  lvalue e)
+---------------------------------------
+-- Tudo sobre Comandos ----------------
+comandoP :: Parser Comando
+comandoP =
+  try (incrementoP)
+  <|> try (atribuicaoP)
+  <|> imprimaP
+  <|> inicializacaoP
+  <|> declaracaoP
+  <|> seP
+  <|> enquantoP
+    where
+      incrementoP :: Parser Comando
+      incrementoP = do
+        id <- idP
+        tokenP MaisMais
+        tokenP PontoVirgula
+        return (Incremento (getPos id) id)
+      
+      atribuicaoP :: Parser Comando
+      atribuicaoP = do
+        lvalue <- atribuendoP
+        tokenP Igual
+        e <- exprP
+        tokenP PontoVirgula
+        return (Atribuicao (mergePos lvalue e)  lvalue e)
 
-inicializacao :: Parser Comando
-inicializacao = do
-  start <- tokenP Inicialize
-  id <- idP
-  tokenP QuatroPontos
-  t <- tipoP
-  tokenP Com
-  e <- exprP
-  end <- tokenP PontoVirgula
-  return (Inicializacao (Pos start end) id t e)
- 
-declaracao :: Parser Comando
-declaracao = do
-  start <- tokenP Declare
-  id <- idP
-  tokenP QuatroPontos
-  t <- tipoP
-  end <- tokenP PontoVirgula
-  return (Declaracao (Pos start end) id t)
+      atribuendoP :: Parser Atribuendo
+      atribuendoP =
+            try (AId <$> idP) 
+        <|> try (AArray <$> idP <*> exprP) 
+        <|> try (ARef <$> idP <* tokenP Vezes)
 
--- Sobre se e enquanto:
--- Vamos usar as construções de Dijskra mesmo?
--- Se sim, isso aqui não vai funcionar
-se :: Parser Comando
-se = do
-  start <- tokenP Se
-  cond <- exprP
-  tokenP DoisPontos
-  cmdsThen <- many comando
-  tokenP Senao
-  tokenP DoisPontos
-  cmdsElse <- many comando
-
-  end <- tokenP FimSe
-  return(SeCmd (Pos start end) cond cmdsThen cmdsElse)
-
-enquanto :: Parser Comando
-enquanto = do
-  start <- tokenP Enquanto
-  tokenP DoisPontos
-  cond <- exprP
-  tokenP Faca
-  tokenP DoisPontos
-  cmdsThen <- many comando
-  tokenP FimFaca
-  end <- tokenP FimEnquanto
-  return(EnquantoCmd (Pos start end) cond cmdsThen)
-
+      imprimaP :: Parser Comando
+      imprimaP = do
+        start <- tokenP Imprima
+        e <- exprP
+        end <- tokenP PontoVirgula
+        return (ImprimaCmd (Pos start end) e)
+      
+      inicializacaoP :: Parser Comando
+      inicializacaoP = do
+        start <- tokenP Inicialize
+        id <- idP
+        tokenP QuatroPontos
+        t <- tipoP
+        tokenP Com
+        e <- exprP
+        end <- tokenP PontoVirgula
+        return (Inicializacao (Pos start end) id t e)
+      
+      declaracaoP :: Parser Comando
+      declaracaoP = do
+        start <- tokenP Declare
+        id <- idP
+        tokenP QuatroPontos
+        t <- tipoP
+        end <- tokenP PontoVirgula
+        return (Declaracao (Pos start end) id t)
+      
+      seP :: Parser Comando
+      seP = do
+        start <- tokenP Se
+        cond <- exprP
+        tokenP DoisPontos
+        cmdsThen <- many comandoP
+        tokenP Senao
+        tokenP DoisPontos
+        cmdsElse <- many comandoP
+        end <- tokenP FimSe
+        return(SeCmd (Pos start end) cond cmdsThen cmdsElse)
+      
+      enquantoP :: Parser Comando
+      enquantoP = do
+        start <- tokenP Enquanto
+        tokenP DoisPontos
+        cond <- exprP
+        tokenP Faca
+        tokenP DoisPontos
+        cmdsThen <- many comandoP
+        tokenP FimFaca
+        end <- tokenP FimEnquanto
+        return (EnquantoCmd (Pos start end) cond cmdsThen)
+---------------------------------------
+---------------------------------------
 
 --- ⛔⛔⛔ ⚠⚠⚠CRIA O PARSER DO PROGRAMA AQUI ☣☣☣⛔⛔⛔---
 -- Porque não chamar de programaP?
 topLevelP :: Parser TopLevel
 topLevelP = 
     (TLProcedimento <$> procedimentoP)
-   <|> (TLComando <$> comando)
+   <|> (TLComando <$> comandoP)
 
-programa :: Parser Programa
-programa = do
+programaP :: Parser Programa
+programaP = do
   tls <- many topLevelP
   eof
   return (Programa tls)  
-
 
 procedimentoP :: Parser ProcedimentoR
 procedimentoP = do
@@ -157,26 +169,9 @@ procedimentoP = do
   parametros <- sepBy parametroP (tokenP Virgula)
   pardir <- tokenP ParDir
   tokenP DoisPontos
-  cmds <- many comando
+  cmds <- many comandoP
   end <- tokenP FimProcedimento
   return (ProcedimentoR (Pos start end) id parametros cmds)
-
-imprimaP :: Parser Comando
-imprimaP = do
-  start <- tokenP Imprima
-  e <- exprP
-  end <- tokenP PontoVirgula
-  return (ImprimaCmd (Pos start end) e)
-
-comando :: Parser Comando
-comando =
-   try (incremento)
-   <|> try (atribuicao)
-   <|> imprimaP
-   <|> inicializacao
-   <|> declaracao
-   <|> se
-   <|> enquanto
 
 -- Isso aqui não vai funcionar
 parametroP :: Parser Parametro
@@ -202,12 +197,6 @@ indiceP = do
   idx <- exprP
   tokenP ColDir
   return (EIndice (mergePos v idx) (EVar v) idx)
-
-incremento = do
-  id <- idP
-  tokenP MaisMais
-  tokenP PontoVirgula
-  return (Incremento (getPos id) id)
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
