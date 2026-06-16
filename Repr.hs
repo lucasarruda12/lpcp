@@ -50,9 +50,13 @@ data ProcedimentoR
   = ProcedimentoR Pos Id [Parametro] [Comando]
   deriving(Show)
 
+data Atribuendo
+  = AId Id
+  | AArray Id Expr
+  | ARef Id
+
 data Comando
-  = Atribuicao Pos Id Expr 
-  | AtribuicaoArray Pos Id Expr Expr
+  = Atribuicao Pos Atribuendo ExpId Expr
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
   | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
@@ -62,25 +66,15 @@ data Comando
 
 -- == Tudo relacionado a expressões ==
 data OpBin
-  = Soma
-  | Sub
-  | Mul
-  | Div
-  | Exp
-  | Mod
-  | Menor
-  | Maior
-  | MenorIgualOp
-  | MaiorIgualOp
-  | IgualOp
-  | DiferenteOp
-  | AndOp
-  | OrOp
+  = Soma | Sub | Mul | Div
+  | Exp  | Mod | Menor | Maior
+  | MenorIgualOp | MaiorIgualOp
+  | IgualOp | DiferenteOp
+  | AndOp | OrOp
   deriving (Show)
 
 data OpUn
-  = Neg
-  | NaoOp
+  = Neg | NaoOp
   deriving (Show)
 
 data Lit

@@ -70,26 +70,19 @@ tipoP = TId <$> idP <|> (do
   t <- tipoP
   tokenP ColDir
   return $ TList t)
+
+atribuendoP :: Parser Atribuendo
+atribuendoP = do
+  
  
 -- Usa esse aqui como exemplo!
 atribuicao :: Parser Comando
 atribuicao = do
-  id <- idP 
+  lvalue <- atribuendoP
   tokenP Igual
   e <- exprP
   tokenP PontoVirgula
-  return (Atribuicao (mergePos id e)  id e)
-
-atribuicaoArrayP :: Parser Comando
-atribuicaoArrayP = do
-  id <- idP
-  tokenP ColEsq
-  indice <- exprP
-  tokenP ColDir
-  tokenP Igual
-  e <- exprP
-  end <- tokenP PontoVirgula
-  return (AtribuicaoArray (mergePos id e) id indice e)
+  return (Atribuicao (mergePos lvalue e)  lvalue e)
 
 inicializacao :: Parser Comando
 inicializacao = do
@@ -170,7 +163,7 @@ comando :: Parser Comando
 comando =
        try (atribuicaoArrayP)
    <|> try (incremento)
-   <|> atribuicao
+   <|> try (atribuicao)
    <|> inicializacao
    <|> declaracao
    <|> se
