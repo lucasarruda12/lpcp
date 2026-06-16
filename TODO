@@ -1,3 +1,7 @@
 - Acho que tem um errinho no lexer: Ids com todas as letras maiúsculas não tão valendo.
 
 - Todos os nextPos do Parser estão errados
+
+- Falta listas
+
+-- Coloquei array num canto aí no Repr.hs, depois tem que ver se o nome é array mesmo

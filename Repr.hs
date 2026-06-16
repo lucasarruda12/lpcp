@@ -22,26 +22,66 @@ data Id = IdR Pos String
 instance Positional Id where
   getPos (IdR p _) = p
 
-type Tipo = Id
+data Tipo
+  = TId Id
+  | TList Tipo
+  deriving (Show)
+
+instance Positional Tipo where
+  getPos (TId id) = getPos id
+  getPos (TList t) = getPos t
+
+
+data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
+  deriving(Show)
+--- criei isso aqui tambem mas tem que conferir se está correto
+
+--- ⚠⚠⚠  ☢☢parte que corrigi GERALDO OLHE ISSO CEGO ☢☢ ☣☣---
+--- criei isso aqui tambem mas tem que conferir se está correto
+data TopLevel
+  = TLProcedimento ProcedimentoR
+  | TLComando Comando
+  deriving (Show)
+
+data Programa = Programa [TopLevel]
+  deriving (Show)
+
+data ProcedimentoR
+  = ProcedimentoR Pos Id [Parametro] [Comando]
+  deriving(Show)
+
+data Atribuendo
+  = AId Id
+  | AArray Id Expr
+  | ARef Id
+  deriving (Show)
+
+instance Positional Atribuendo where
+  getPos (AId id) = getPos id
+  getPos (AArray id e) = mergePos id e
+  getPos (ARef id) = getPos id
 
 data Comando
-  = Atribuicao Pos Id Expr 
+  = Atribuicao Pos Atribuendo Expr
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
+  | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
+  | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
+  | Incremento Pos Id
+  | ImprimaCmd Pos Expr
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==
 data OpBin
-  = Soma
-  | Sub
-  | Mul
-  | Div
-  | Exp
-  | Mod
+  = Soma | Sub | Mul | Div
+  | Exp  | Mod | Menor | Maior
+  | MenorIgualOp | MaiorIgualOp
+  | IgualOp | DiferenteOp
+  | AndOp | OrOp
   deriving (Show)
 
 data OpUn
-  = Neg
+  = Neg | NaoOp
   deriving (Show)
 
 data Lit
@@ -58,7 +98,8 @@ instance Positional Lit where
 data Expr
   = ELit Lit
   | EVar Id
-  | EChamada Pos Token [Expr]
+  | EChamada Pos Id [Expr]
+  | EIndice Pos Expr Expr
   | EOpBin Pos OpBin Expr Expr
   | EOpUn Pos OpUn Expr
   deriving(Show)
@@ -67,6 +108,7 @@ instance Positional Expr where
   getPos (ELit l) = getPos l
   getPos (EVar (IdR p _)) = p
   getPos (EChamada p _ _) = p
+  getPos (EIndice p _ _) = p
   getPos (EOpBin p _ _ _) = p
   getPos (EOpUn p _ _) = p
 -- ===================================
@@ -75,4 +117,3 @@ instance Positional Expr where
 -- data Funcao = MkFuncao Id [Argumento] [Comando] Descritor
 -- data Procedimento = MkProcedimento Id [Argumento] [Comando]
 -- type Programa = [Comando]
-
