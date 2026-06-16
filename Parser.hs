@@ -9,6 +9,8 @@ import Data.Maybe (Maybe(Nothing))
 import Data.Maybe (isJust)
 import Text.XHtml (start)
 
+-- Adicionar os P depois dos parser -> parserP
+
 type Parser a = Parsec [Token] () a
 
 -- Tem muito token que eu não me importo com o resultado.
@@ -60,22 +62,34 @@ parens p = do
   return t
  
 -- Isso não tá legal
-
 -- ⛔⛔⛔ LUCAS OLHA AQUI ⛔⛔⛔
+-- Parsear um Id e depois levar pros constrututores corretos de Tipo
 tipoP :: Parser Tipo
-tipoP = tokenPrim show nextPos test
-  where
-    test (Token p (Tipo s)) = Just (IdR (Pos p p) s)
-    test _ = Nothing
-    nextPos pos _ _ = pos
+tipoP = TId <$> idP <|> (do
+  tokenP ColEsq
+  t <- tipoP
+  tokenP ColDir
+  return $ TList t)
  
 -- Usa esse aqui como exemplo!
 atribuicao :: Parser Comando
 atribuicao = do
-  id <- idP
+  id <- idP 
   tokenP Igual
   e <- exprP
+  tokenP PontoVirgula
   return (Atribuicao (mergePos id e)  id e)
+
+atribuicaoArrayP :: Parser Comando
+atribuicaoArrayP = do
+  id <- idP
+  tokenP ColEsq
+  indice <- exprP
+  tokenP ColDir
+  tokenP Igual
+  e <- exprP
+  end <- tokenP PontoVirgula
+  return (AtribuicaoArray (mergePos id e) id indice e)
 
 inicializacao :: Parser Comando
 inicializacao = do
@@ -97,6 +111,9 @@ declaracao = do
   end <- tokenP PontoVirgula
   return (Declaracao (Pos start end) id t)
 
+-- Sobre se e enquanto:
+-- Vamos usar as construções de Dijskra mesmo?
+-- Se sim, isso aqui não vai funcionar
 se :: Parser Comando
 se = do
   start <- tokenP Se
@@ -124,10 +141,12 @@ enquanto = do
 
 
 --- ⛔⛔⛔ ⚠⚠⚠CRIA O PARSER DO PROGRAMA AQUI ☣☣☣⛔⛔⛔---
+-- Porque não chamar de programaP?
 topLevelP :: Parser TopLevel
 topLevelP = 
     (TLProcedimento <$> procedimentoP)
    <|> (TLComando <$> comando)
+
 programa :: Parser Programa
 programa = do
   tls <- many topLevelP
@@ -149,13 +168,15 @@ procedimentoP = do
 
 comando :: Parser Comando
 comando =
-       incremento
+       try (atribuicaoArrayP)
+   <|> try (incremento)
    <|> atribuicao
    <|> inicializacao
    <|> declaracao
    <|> se
    <|> enquanto
 
+-- Isso aqui não vai funcionar
 parametroP :: Parser Parametro
 parametroP = do
   ref <- optionMaybe(tokenP EComercial)

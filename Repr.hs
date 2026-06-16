@@ -22,14 +22,19 @@ data Id = IdR Pos String
 instance Positional Id where
   getPos (IdR p _) = p
 
-type Tipo = Id
+data Tipo
+  = TId Id
+  | TList Tipo
+  deriving (Show)
+
+instance Positional Tipo where
+  getPos (TId id) = getPos id
+  getPos (TList t) = getPos t
+
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
   deriving(Show)
 --- criei isso aqui tambem mas tem que conferir se está correto
-
-
-
 
 --- ⚠⚠⚠  ☢☢parte que corrigi GERALDO OLHE ISSO CEGO ☢☢ ☣☣---
 --- criei isso aqui tambem mas tem que conferir se está correto
@@ -41,15 +46,13 @@ data TopLevel
 data Programa = Programa [TopLevel]
   deriving (Show)
 
-
-
-
 data ProcedimentoR
   = ProcedimentoR Pos Id [Parametro] [Comando]
   deriving(Show)
 
 data Comando
   = Atribuicao Pos Id Expr 
+  | AtribuicaoArray Pos Id Expr Expr
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
   | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
