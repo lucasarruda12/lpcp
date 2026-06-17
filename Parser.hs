@@ -39,7 +39,7 @@ idP = tokenPrim show nextPos test
     nextPos pos _ _ = pos
 
 litP :: Parser Lit
-litP = litIntP <|> litStringP <|> litBoolP
+litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNadaP
   where
     nextPos pos _ _ = pos
 
@@ -51,9 +51,21 @@ litP = litIntP <|> litStringP <|> litBoolP
     testString (Token p (LitString s)) = Just (LString (Pos p p) s)
     testString _ = Nothing
 
-    litBoolP = tokenPrim show nextPos testBool
+    litBoolP = tokenPrim show nextPos testReal
     testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
     testBool _ = Nothing
+
+    litRealP = tokenPrim show nextPos testReal
+    testReal (Token p (LitReal r)) = Just (LReal (Pos p p) r)
+    testReal _ = Nothing
+
+    litFloatP = tokenPrim show nextPos testFloat
+    testFloat (Token p (LitFloat f)) = Just (LFloat (Pos p p) f)
+    testFloat _ = Nothing
+
+    litNadaP = do
+      p <- tokenP Nada
+      return (LNada (Pos p p))
  
 tipoP :: Parser Tipo
 tipoP = TId <$> idP <|> (do

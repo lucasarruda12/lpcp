@@ -10,13 +10,17 @@ data Valor
   = VInt Int
   | VBool Bool
   | VString String
-  | VNone
+  | VReal Double
+  | VFloat Float
+  | VNada
 
 instance Show Valor where
   show (VInt x) = show x
   show (VBool b) = show b
   show (VString s) = show s
-  show VNone = "None"
+  show (VReal s) = show s
+  show (VFloat s) = show s
+  show VNada = "Nada"
 
 data Erro 
   = TypeError Pos
@@ -51,6 +55,9 @@ instance Evaluavel Lit where
   eval (LInt _ x) = pure $ VInt x
   eval (LBool _ b) = pure $ VBool b
   eval (LString _ s) = pure $ VString s
+  eval (LNada _) = pure $ VNada
+  eval (LReal _ r) = pure $ VReal r
+  eval (LFloat _ f) = pure $ VFloat f
 
 evalOpBin :: OpBin -> Valor -> Valor -> Maybe Valor
 evalOpBin Soma (VInt x) (VInt y) = Just $ VInt (x + y)
@@ -99,7 +106,7 @@ instance Evaluavel Comando where
     v <- eval e
     modify $ \amb ->
       amb { stackLocal = Map.insert id v (stackLocal amb) }
-    return VNone
+    return VNada
 
 instance Evaluavel TopLevel where
   eval (TLComando c) = eval c
@@ -107,7 +114,7 @@ instance Evaluavel TopLevel where
 instance Evaluavel Programa where
   eval (Programa ls) = do
     mapM_ eval ls
-    return VNone
+    return VNada
 
 run :: EvalM (Valor) -> IO ()
 run m = do

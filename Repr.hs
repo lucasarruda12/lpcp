@@ -94,6 +94,9 @@ data Lit
   = LInt Pos Int
   | LString Pos String
   | LBool Pos Bool
+  | LFloat Pos Float
+  | LReal Pos Double
+  | LNada Pos
   deriving (Show)
 
 instance Positional Lit where

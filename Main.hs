@@ -8,6 +8,6 @@ import Interpreter
 
 main :: IO ()
 main = do
-  let tok = tokenize "INICIALIZE a :: Booleano COM VERDADEIRO; IMPRIMA a;"
+  let tok = tokenize "IMPRIMA NADA; IMPRIMA 3.12; IMPRIMA 3.54r;"
   let Right ast = parse programaP "" tok
   run (eval ast)
