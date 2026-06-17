@@ -54,11 +54,18 @@ tokens :-
   INT {\p s -> Token p (Tipo s)}
   COM {\p _ -> Token p Com}
   IMPRIMA {\p _ -> Token p Imprima}
+  NADA {\p _ -> Token p Nada}
 
   -- adicionando BOOLS --
   VERDADEIRO {\p _ -> Token p (LitBool True)}
   FALSO      {\p _ -> Token p (LitBool False)}
-  \"([^\"\\]|\\.)*\" { \p s -> Token p (LitString s)}
+
+  -- STRINGS --
+  \"([^\"\\]|\\.)*\" { \p s -> Token p (LitString (init (tail s))) }
+
+  -- FLOATS E REAIS --
+  [0-9]+\.[0-9]+r { \p s -> Token p (LitReal (read . init $ s)) }
+  [0-9]+\.[0-9]+ {\p s -> Token p (LitFloat (read s)) }
 
   -- OPERADORES LOGICOS
   AND    {\p _ -> Token p ELogico}
@@ -109,6 +116,8 @@ data TokenKind
   | PontoVirgula 
   | Virgula 
   | LitInt Int
+  | LitFloat Float
+  | LitReal Double
   | LitBool Bool
   | LitString String
   | ELogico
@@ -132,6 +141,7 @@ data TokenKind
   | AspasDuplas 
   | Pipe
   | Declare
+  | Nada
 
   deriving (Eq, Show)
 

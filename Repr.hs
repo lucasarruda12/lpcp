@@ -5,7 +5,7 @@ import Lexer
 data Pos = Pos 
   { inicio :: AlexPosn
   , fim    :: AlexPosn }
-  deriving (Show)
+  deriving (Show, Eq, Ord)
 
 class Positional a where
   getPos :: a -> Pos
@@ -18,6 +18,12 @@ mergePos a b = Pos s e
 
 data Id = IdR Pos String
   deriving (Show)
+
+instance Eq Id where
+  (IdR _ s) == (IdR _ s') = s == s'
+
+instance Ord Id where
+  (IdR _ s) <= (IdR _ s') = s <= s'
 
 instance Positional Id where
   getPos (IdR p _) = p
@@ -88,6 +94,9 @@ data Lit
   = LInt Pos Int
   | LString Pos String
   | LBool Pos Bool
+  | LFloat Pos Float
+  | LReal Pos Double
+  | LNada Pos
   deriving (Show)
 
 instance Positional Lit where
