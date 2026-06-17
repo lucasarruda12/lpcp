@@ -38,6 +38,13 @@ idP = tokenPrim show nextPos test
     test _ = Nothing
     nextPos pos _ _ = pos
 
+tipoBaseP :: Parser Tipo  -- parser para reconhecer nosso [INT]
+tipoBaseP = tokenPrim show nextPos test
+  where
+    test (Token p (Tipo s)) = Just (TId (IdR (Pos p p) s))
+    test _ = Nothing
+    nextPos pos _ _ = pos
+
 litP :: Parser Lit
 litP = litIntP <|> litStringP <|> litBoolP
   where
@@ -56,7 +63,7 @@ litP = litIntP <|> litStringP <|> litBoolP
     testBool _ = Nothing
  
 tipoP :: Parser Tipo
-tipoP = TId <$> idP <|> (do
+tipoP = TId <$> idP <|> tipoBaseP <|> (do
   tokenP ColEsq
   t <- tipoP
   tokenP ColDir
