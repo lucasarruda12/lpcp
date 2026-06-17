@@ -7,4 +7,7 @@ import Repr
 import Interpreter
 
 main :: IO ()
-main = print  "oi!"
+main = do
+  let tok = tokenize "INICIALIZE a :: Booleano COM VERDADEIRO; IMPRIMA a;"
+  let Right ast = parse programaP "" tok
+  run (eval ast)
