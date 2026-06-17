@@ -1,0 +1,7 @@
+INICIALIZE a :: Float COM 12.2;
+INICIALIZE b :: Int COM 2;
+INICIALIZE c :: Float COM 13.3;
+INICIALIZE d :: Int COM 3;
+
+IMPRIMA a + c;
+IMPRIMA b + d;
