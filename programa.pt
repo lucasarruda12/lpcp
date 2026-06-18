@@ -1,10 +1,12 @@
-INICIALIZE a :: Float COM 12.2;
+PROCEDIMENTO soma_imprime (a :: Int, b :: Int):
+  INICIALIZE c :: Int COM a + b;
+  IMPRIMA c;
+FIM_PROCEDIMENTO.
+
+INICIALIZE a :: Real COM 12.2r;
 INICIALIZE b :: Int COM 2;
-INICIALIZE c :: Float COM 13.3;
+INICIALIZE c :: Real COM 13.3r;
 INICIALIZE d :: Int COM 3;
 
-INICIALIZE s :: String COM "3.12";
-
-IMPRIMA (a + c);
-IMPRIMA b + d + int(a + c);
-IMPRIMA real(s);
+soma_imprime(b, d);
+IMPRIMA c;

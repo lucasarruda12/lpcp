@@ -10,5 +10,6 @@ main :: IO ()
 main = do
   prog <- readFile "programa.pt"
   let tok = tokenize prog
-  let Right ast = parse programaP "" tok
-  run (eval ast)
+  case (parse programaP "" tok) of
+    Right ast -> run (eval ast)
+    Left error -> print error

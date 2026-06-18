@@ -74,6 +74,7 @@ data Comando
   | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
+  | ChamadaCmd Pos Id [Expr]
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==

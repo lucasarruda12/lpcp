@@ -7,6 +7,12 @@ import GHC.Float (float2Double, double2Float)
 
 import Repr
 
+-- O pai estático de qualquer função ou procedimento é sempre o escopo glboal.
+-- Minha ideia pra aproveitar isso é: ter um escopo local e um escopo global.
+-- As funções só podem acessar a cabeça da lista do escopo_local
+-- Os operadores condicionais se, enquanto podem sair procurando por todo o escopo local
+-- Todo mundo, em último caso, olha o escopo global.
+
 data Valor 
   = VInt Int
   | VBool Bool
@@ -26,6 +32,7 @@ instance Show Valor where
 data Erro 
   = TypeError Pos
   | UndefinedVariable Pos
+  | IncorrectNumberOfParameters
   | Context Pos Erro
   deriving (Show)
 
@@ -36,18 +43,59 @@ comPosicao p m =
 type EvalM = ExceptT Erro (StateT Ambiente IO)
 
 data Ambiente = Am
-  { stackLocal :: Map.Map Id Valor
+  { stackLocal :: [Map.Map Id Valor]
   , stackGlobal :: Map.Map Id Valor
   , heap :: Map.Map Int Valor 
+  , ps :: [ProcedimentoR]
+  , subprograma :: Bool
+  --, tipos
+  --, fs
+  -- ...
   }
   deriving(Show)
 
+ambienteVazio :: Ambiente
+ambienteVazio = Am [] Map.empty Map.empty [] False
+
+addVar :: Id -> Valor -> EvalM ()
+addVar id v = do
+  -- TODO: Checar se já existe?
+  sl <- gets stackLocal
+  case sl of
+    []      -> modify $ \am -> am { stackGlobal = Map.insert id v (stackGlobal am) }
+    (s:ss)  -> modify $ \am -> am { stackLocal = (Map.insert id v s) : ss }
+
 getVar :: Id -> EvalM (Valor)
 getVar id = do
-  a <- get
-  case Map.lookup id (stackLocal a) of
+  am <- get
+  let sub = subprograma am
+  case getVar' (stackLocal am) am sub of
     Just v -> return v
     Nothing -> throwError $ UndefinedVariable (getPos id)
+  where
+    getVar' pilhas am sub =
+      case pilhas of
+        [] -> Map.lookup id (stackGlobal am)
+        (s : ss) -> 
+          case Map.lookup id s of
+            Nothing -> if sub 
+              then Nothing
+              else getVar' ss am sub
+            Just v -> Just v
+
+getProc :: Id -> EvalM (ProcedimentoR)
+getProc nome = do
+  ps <- gets ps
+  case lookup nome ps of
+    Just p -> return p
+    Nothing -> throwError $ UndefinedVariable (getPos nome)
+
+  where
+    lookup :: Id -> [ProcedimentoR] -> Maybe ProcedimentoR
+    lookup name (p@(ProcedimentoR _ name' _ _) : ps)
+      | name == name' = Just p
+      | otherwise = lookup name ps
+    loopup _ [] = Nothing
 
 class Evaluavel a where
   eval :: a -> EvalM (Valor)
@@ -173,19 +221,42 @@ instance Evaluavel Comando where
   -- TODO: Não checa tipos
   eval (Inicializacao p i t e) = comPosicao p $ do
     v <- eval e
-    modify $ \amb ->
-      amb { stackLocal = Map.insert i v (stackLocal amb) }
+    -- TODO: Checagem de tipos?
+    addVar i v
     return VNada
+
+  eval (ChamadaCmd p nome args) = comPosicao p $ do
+    vs <- mapM eval args
+    proc <- getProc nome
+    eval (proc, vs)
+
+instance Evaluavel (ProcedimentoR, [Valor]) where
+  eval (p, vs) = do
+    prevStackLocal <- gets stackLocal
+    modify $ \am -> 
+      am { stackLocal = [ Map.empty ], subprograma = True }
+    add pars vs
+    mapM eval cs
+    modify $ \am ->
+      am { stackLocal = prevStackLocal }
+    return VNada
+    where
+      (ProcedimentoR pos _ pars cs) = p
+      add :: [Parametro] -> [Valor] -> EvalM ()
+      add ((Parametro n _ _) : ps) (v : vs) = addVar n v *> add ps vs
+      add [] [] = pure ()
+      add _ _ = throwError IncorrectNumberOfParameters
 
 instance Evaluavel Programa where
   eval (Programa ps cs) = do
-    -- TODO: Adicionar os procedimentos
+    modify $ \amb ->
+      amb { ps = ps } 
     mapM_ eval cs
     return VNada
 
 run :: EvalM (Valor) -> IO ()
 run m = do
-  (result, ambiente) <- runStateT (runExceptT m) (Am Map.empty Map.empty Map.empty)
+  (result, ambiente) <- runStateT (runExceptT m) ambienteVazio
   case result of
     Left err -> print err
     Right _ -> pure ()

@@ -79,13 +79,14 @@ tipoP = TId <$> idP
 -- Tudo sobre Comandos ----------------
 comandoP :: Parser Comando
 comandoP =
-  try (incrementoP)
-  <|> try (atribuicaoP)
+  try incrementoP
+  <|> try atribuicaoP
   <|> imprimaP
   <|> inicializacaoP
   <|> declaracaoP
   <|> seP
   <|> enquantoP
+  <|> chamadaCmdP
     where
       incrementoP :: Parser Comando
       incrementoP = do
@@ -158,6 +159,13 @@ comandoP =
         tokenP FimFaca
         end <- tokenP FimEnquanto
         return (EnquantoCmd (Pos start end) cond cmdsThen)
+
+      chamadaCmdP :: Parser Comando
+      chamadaCmdP = do
+        p <- idP
+        args <- parens $ sepBy exprP (tokenP Virgula)
+        tokenP PontoVirgula
+        return (ChamadaCmd (getPos p) p args)
 ---------------------------------------
 ---------------------------------------
 adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
@@ -168,9 +176,9 @@ adicionarComando c (Programa ps cs) = Programa ps (c : cs)
 
 programaP :: Parser Programa
 programaP
-  =   (adicionarComando <$> comandoP <*> programaP) 
-  <|> (adicionarProcedimento <$> procedimentoP <*> programaP)
-  <|> pure (Programa [] [])
+  =   (adicionarProcedimento <$> procedimentoP <*> programaP)
+  <|> (adicionarComando <$> comandoP <*> programaP) 
+  <|> (pure (Programa [] []) <* eof)
   where
     procedimentoP :: Parser ProcedimentoR
     procedimentoP = do
@@ -181,7 +189,7 @@ programaP
       pardir <- tokenP ParDir
       tokenP DoisPontos
       cmds <- many comandoP
-      end <- tokenP FimProcedimento
+      end <- tokenP FimProcedimento <?> "FIM_PROCEDIMENTO."
       return (ProcedimentoR (Pos start end) id parametros cmds)
 
 -- Isso aqui não vai funcionar
