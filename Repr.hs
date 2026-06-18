@@ -87,7 +87,10 @@ data OpBin
   deriving (Show)
 
 data OpUn
-  = Neg | NaoOp
+  = Neg | NaoOp | ConvInt | ConvBool
+  | ConvReal | ConvString | ConvNada
+  | ConvFloat
+
   deriving (Show)
 
 data Lit

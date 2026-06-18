@@ -51,10 +51,16 @@ tokens :-
   FIM_SE. {\p _ -> Token p FimSe}
   INICIALIZE {\p _ -> Token p Inicialize}
   DECLARE {\p _ -> Token p Declare}
-  INT {\p s -> Token p (Tipo s)}
   COM {\p _ -> Token p Com}
   IMPRIMA {\p _ -> Token p Imprima}
   NADA {\p _ -> Token p Nada}
+
+  -- Tipos
+  int {\p _ -> Token p TInt}
+  float {\p _ -> Token p TFloat}
+  real {\p _ -> Token p TReal}
+  bool {\p _ -> Token p TBool}
+  string {\p _ -> Token p TString}
 
   -- adicionando BOOLS --
   VERDADEIRO {\p _ -> Token p (LitBool True)}
@@ -142,6 +148,11 @@ data TokenKind
   | Pipe
   | Declare
   | Nada
+  | TInt
+  | TFloat
+  | TReal
+  | TBool
+  | TString
 
   deriving (Eq, Show)
 

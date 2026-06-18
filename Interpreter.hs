@@ -60,48 +60,65 @@ instance Evaluavel Lit where
   eval (LFloat _ f) = pure $ VFloat f
 
 evalOpBin :: OpBin -> Valor -> Valor -> Maybe Valor
-evalOpBin Soma (VInt x) (VInt y) = Just $ VInt (x + y)
-evalOpBin Sub (VInt x) (VInt y) = Just $ VInt (x - y)
-evalOpBin Mul (VInt x) (VInt y) = Just $ VInt (x * y)
-evalOpBin Div (VInt x) (VInt y) = Just $ VInt (x `div` y)
-evalOpBin Exp (VInt x) (VInt y) = Just $ VInt (x ^ y)
-evalOpBin Mod (VInt x) (VInt y) = Just $ VInt (x `mod` y)
-evalOpBin Menor (VInt x) (VInt y) = Just $ VBool (x < y)
-evalOpBin Maior (VInt x) (VInt y) = Just $ VBool (x > y)
-evalOpBin MenorIgualOp (VInt x) (VInt y) = Just $ VBool (x <= y)
-evalOpBin MaiorIgualOp (VInt x) (VInt y) = Just $ VBool (x >= y)
-evalOpBin IgualOp (VInt x) (VInt y) = Just $ VBool (x == y)
+evalOpBin op (VInt x) (VInt y) = Just $ case op of
+  Soma -> VInt (x + y)
+  Sub -> VInt (x - y)
+  Mul -> VInt (x * y)
+  Div -> VInt (x `div` y)
+  Exp -> VInt (x ^ y)
+  Mod -> VInt (x `mod` y)
+  Menor -> VBool (x < y)
+  Maior -> VBool (x > y)
+  MenorIgualOp -> VBool (x <= y)
+  MaiorIgualOp -> VBool (x >= y)
+  IgualOp -> VBool (x == y)
 
-evalOpBin Soma (VReal x) (VReal y) = Just $ VReal (x + y)
-evalOpBin Sub (VReal x) (VReal y) = Just $ VReal (x - y)
-evalOpBin Mul (VReal x) (VReal y) = Just $ VReal (x * y)
-evalOpBin Div (VReal x) (VReal y) = Just $ VReal (x / y)
-evalOpBin Exp (VReal x) (VReal y) = Just $ VReal (x ** y)
-evalOpBin Menor (VReal x) (VReal y) = Just $ VBool (x < y)
-evalOpBin Maior (VReal x) (VReal y) = Just $ VBool (x > y)
-evalOpBin MenorIgualOp (VReal x) (VReal y) = Just $ VBool (x <= y)
-evalOpBin MaiorIgualOp (VReal x) (VReal y) = Just $ VBool (x >= y)
-evalOpBin IgualOp (VReal x) (VReal y) = Just $ VBool (x == y)
+evalOpBin op (VReal x) (VReal y) = Just $ case op of
+  Soma -> VReal (x + y)
+  Sub -> VReal (x - y)
+  Mul -> VReal (x * y)
+  Div -> VReal (x / y)
+  Exp -> VReal (x ** y)
+  Menor -> VBool (x < y)
+  Maior -> VBool (x > y)
+  MenorIgualOp -> VBool (x <= y)
+  MaiorIgualOp -> VBool (x >= y)
+  IgualOp -> VBool (x == y)
+  DiferenteOp -> VBool (x /= y)
 
-evalOpBin Soma (VFloat x) (VFloat y) = Just $ VFloat (x + y)
-evalOpBin Sub (VFloat x) (VFloat y) = Just $ VFloat (x - y)
-evalOpBin Mul (VFloat x) (VFloat y) = Just $ VFloat (x * y)
-evalOpBin Div (VFloat x) (VFloat y) = Just $ VFloat (x / y)
-evalOpBin Exp (VFloat x) (VFloat y) = Just $ VFloat (x ** y)
-evalOpBin Menor (VFloat x) (VFloat y) = Just $ VBool (x < y)
-evalOpBin Maior (VFloat x) (VFloat y) = Just $ VBool (x > y)
-evalOpBin MenorIgualOp (VFloat x) (VFloat y) = Just $ VBool (x <= y)
-evalOpBin MaiorIgualOp (VFloat x) (VFloat y) = Just $ VBool (x >= y)
-evalOpBin IgualOp (VFloat x) (VFloat y) = Just $ VBool (x == y)
-evalOpBin DiferenteOp (VFloat x) (VFloat y) = Just $ VBool (x /= y)
+evalOpBin op (VFloat x) (VFloat y) = Just $ case op of
+  Soma -> VFloat (x + y)
+  Sub -> VFloat (x - y)
+  Mul -> VFloat (x * y)
+  Div -> VFloat (x / y)
+  Exp -> VFloat (x ** y)
+  Menor -> VBool (x < y)
+  Maior -> VBool (x > y)
+  MenorIgualOp -> VBool (x <= y)
+  MaiorIgualOp -> VBool (x >= y)
+  IgualOp -> VBool (x == y)
+  DiferenteOp -> VBool (x /= y)
 
-evalOpBin AndOp (VBool b1) (VBool b2) = Just $ VBool (b1 && b2)
-evalOpBin OrOp (VBool b1) (VBool b2) = Just $ VBool (b1 || b2)
+evalOpBin op (VBool b1) (VBool b2) = Just $ case op of
+  AndOp -> VBool (b1 && b2)
+  OrOp -> VBool (b1 || b2)
+
 evalOpBin _ _ _ = Nothing
 
 evalOpUn :: OpUn -> Valor -> Maybe Valor
 evalOpUn Neg (VInt x) = Just $ VInt (-x)
 evalOpUn NaoOp (VBool b) = Just $ VBool (not b)
+evalOpUn ConvInt v = Just $ case v of
+  (VInt x) -> VInt x
+  (VReal x) -> VInt (round x)
+  (VFloat x) -> VInt (round x)
+  (VBool True) -> VInt 1
+  (VBool False) -> VInt 0
+  (VString s) -> VInt (read s) --- MUUUIITO ERRADO!!!
+
+evalOpUn ConvBool v = Just $ case v of
+  (VInt 0) -> VBool False
+  (VInt _) -> VBool True
 
 instance Evaluavel Expr where
   eval (ELit l) = eval l

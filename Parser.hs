@@ -68,11 +68,12 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
       return (LNada (Pos p p))
  
 tipoP :: Parser Tipo
-tipoP = TId <$> idP <|> (do
-  tokenP ColEsq
-  t <- tipoP
-  tokenP ColDir
-  return $ TList t)
+tipoP = TId <$> idP 
+  <|> (do
+    tokenP ColEsq
+    t <- tipoP
+    tokenP ColDir
+    return $ TList t)
 
 ---------------------------------------
 -- Tudo sobre Comandos ----------------
@@ -251,10 +252,29 @@ exprP = buildExpressionParser table term
       tokenP tk
       pure $ \e -> EOpUn (getPos e) op e
 
+    convP :: Parser Expr
+    convP = 
+      choice
+        [ try $ convP' op tok
+        | (op, tok) <-
+            [ (ConvInt, TInt)
+            , (ConvReal, TReal)
+            , (ConvBool, TBool)
+            , (ConvNada, Nada)
+            , (ConvString, TString)
+            , (ConvFloat, TFloat)
+            ]
+        ]
+
+    convP' op tok = do
+      start <- tokenP tok
+      e <- parens exprP
+      return $ EOpUn (getPos e) op e
+
     term =
         try chamadaP
         <|> try indiceP
         <|> ELit <$> litP
         <|> EVar <$> idP
+        <|> convP
         <|> parens exprP
--- TEM QUE IDENTAR GERALDO
