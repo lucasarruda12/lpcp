@@ -3,6 +3,7 @@ module Interpreter where
 import Control.Monad.State
 import Control.Monad.Except
 import qualified Data.Map as Map
+import GHC.Float (float2Double, double2Float)
 
 import Repr
 
@@ -110,15 +111,42 @@ evalOpUn Neg (VInt x) = Just $ VInt (-x)
 evalOpUn NaoOp (VBool b) = Just $ VBool (not b)
 evalOpUn ConvInt v = Just $ case v of
   (VInt x) -> VInt x
-  (VReal x) -> VInt (round x)
-  (VFloat x) -> VInt (round x)
+  (VReal x) -> VInt (truncate x)
+  (VFloat x) -> VInt (truncate x)
   (VBool True) -> VInt 1
   (VBool False) -> VInt 0
-  (VString s) -> VInt (read s) --- MUUUIITO ERRADO!!!
+  (VString s) -> VInt (read s) --- TODO: MUUUIITO ERRADO!!!
 
 evalOpUn ConvBool v = Just $ case v of
   (VInt 0) -> VBool False
   (VInt _) -> VBool True
+  (VReal 0) -> VBool False
+  (VReal _) -> VBool True
+  (VFloat 0) -> VBool False
+  (VFloat _) -> VBool True
+  (VString "") -> VBool False
+  (VString _) -> VBool True
+  (VNada) -> VBool False
+
+evalOpUn ConvReal v = Just $ case v of
+  (VInt x) -> VReal (fromIntegral x)
+  (VFloat x) -> VReal (float2Double x)
+  (VBool True) -> VReal 1
+  (VBool False) -> VReal 0
+  (VString s) -> VReal (read s) --- TODO: MUUUIITO ERRADO!!!
+
+evalOpUn ConvFloat v = Just $ case v of
+  (VInt x) -> VFloat (fromIntegral x)
+  (VReal x) -> VFloat (double2Float x)
+  (VBool True) -> VFloat 1
+  (VBool False) -> VFloat 0
+  (VString s) -> VFloat (read s) --- TODO: MUUUIITO ERRADO!!!
+
+evalOpUn ConvString v = Just $ case v of
+  (VInt x) -> VString $ show x
+  (VReal x) -> VString $ show x
+  (VBool b) -> VString $ show b
+  VNada -> VString "nada"
 
 instance Evaluavel Expr where
   eval (ELit l) = eval l
@@ -142,18 +170,17 @@ instance Evaluavel Comando where
     liftIO $ print v
     return v
 
-  eval (Inicializacao p id t e) = comPosicao p $ do
+  -- TODO: Não checa tipos
+  eval (Inicializacao p i t e) = comPosicao p $ do
     v <- eval e
     modify $ \amb ->
-      amb { stackLocal = Map.insert id v (stackLocal amb) }
+      amb { stackLocal = Map.insert i v (stackLocal amb) }
     return VNada
 
-instance Evaluavel TopLevel where
-  eval (TLComando c) = eval c
-
 instance Evaluavel Programa where
-  eval (Programa ls) = do
-    mapM_ eval ls
+  eval (Programa ps cs) = do
+    -- TODO: Adicionar os procedimentos
+    mapM_ eval cs
     return VNada
 
 run :: EvalM (Valor) -> IO ()
@@ -161,5 +188,5 @@ run m = do
   (result, ambiente) <- runStateT (runExceptT m) (Am Map.empty Map.empty Map.empty)
   case result of
     Left err -> print err
-    Right v -> pure ()
+    Right _ -> pure ()
   print ambiente

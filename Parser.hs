@@ -160,31 +160,29 @@ comandoP =
         return (EnquantoCmd (Pos start end) cond cmdsThen)
 ---------------------------------------
 ---------------------------------------
+adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
+adicionarProcedimento p (Programa ps cs) = Programa (p : ps) cs
 
---- ⛔⛔⛔ ⚠⚠⚠CRIA O PARSER DO PROGRAMA AQUI ☣☣☣⛔⛔⛔---
--- Porque não chamar de programaP?
-topLevelP :: Parser TopLevel
-topLevelP = 
-    (TLProcedimento <$> procedimentoP)
-   <|> (TLComando <$> comandoP)
+adicionarComando :: Comando -> Programa -> Programa
+adicionarComando c (Programa ps cs) = Programa ps (c : cs)
 
 programaP :: Parser Programa
-programaP = do
-  tls <- many topLevelP
-  eof
-  return (Programa tls)  
-
-procedimentoP :: Parser ProcedimentoR
-procedimentoP = do
-  start <- tokenP Procedimento
-  id <- idP
-  paresq <- tokenP ParEsq
-  parametros <- sepBy parametroP (tokenP Virgula)
-  pardir <- tokenP ParDir
-  tokenP DoisPontos
-  cmds <- many comandoP
-  end <- tokenP FimProcedimento
-  return (ProcedimentoR (Pos start end) id parametros cmds)
+programaP
+  =   (adicionarComando <$> comandoP <*> programaP) 
+  <|> (adicionarProcedimento <$> procedimentoP <*> programaP)
+  <|> pure (Programa [] [])
+  where
+    procedimentoP :: Parser ProcedimentoR
+    procedimentoP = do
+      start <- tokenP Procedimento
+      id <- idP
+      paresq <- tokenP ParEsq
+      parametros <- sepBy parametroP (tokenP Virgula)
+      pardir <- tokenP ParDir
+      tokenP DoisPontos
+      cmds <- many comandoP
+      end <- tokenP FimProcedimento
+      return (ProcedimentoR (Pos start end) id parametros cmds)
 
 -- Isso aqui não vai funcionar
 parametroP :: Parser Parametro
