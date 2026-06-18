@@ -37,19 +37,18 @@ instance Positional Tipo where
   getPos (TId id) = getPos id
   getPos (TList t) = getPos t
 
-
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
   deriving(Show)
 --- criei isso aqui tambem mas tem que conferir se está correto
 
---- ⚠⚠⚠  ☢☢parte que corrigi GERALDO OLHE ISSO CEGO ☢☢ ☣☣---
---- criei isso aqui tambem mas tem que conferir se está correto
-data TopLevel
-  = TLProcedimento ProcedimentoR
-  | TLComando Comando
-  deriving (Show)
-
-data Programa = Programa [TopLevel]
+data Programa = Programa
+  { procedimentos :: [ProcedimentoR]
+  -- Falta aqui:
+  -- Funções
+  -- Tipos definidos
+  -- Mais (?)
+  , comandos :: [Comando]
+  }
   deriving (Show)
 
 data ProcedimentoR
@@ -75,6 +74,7 @@ data Comando
   | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
+  | ChamadaCmd Pos Id [Expr]
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==
@@ -87,7 +87,10 @@ data OpBin
   deriving (Show)
 
 data OpUn
-  = Neg | NaoOp
+  = Neg | NaoOp | ConvInt | ConvBool
+  | ConvReal | ConvString | ConvNada
+  | ConvFloat
+
   deriving (Show)
 
 data Lit

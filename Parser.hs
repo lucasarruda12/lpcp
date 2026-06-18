@@ -68,23 +68,25 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
       return (LNada (Pos p p))
  
 tipoP :: Parser Tipo
-tipoP = TId <$> idP <|> (do
-  tokenP ColEsq
-  t <- tipoP
-  tokenP ColDir
-  return $ TList t)
+tipoP = TId <$> idP 
+  <|> (do
+    tokenP ColEsq
+    t <- tipoP
+    tokenP ColDir
+    return $ TList t)
 
 ---------------------------------------
 -- Tudo sobre Comandos ----------------
 comandoP :: Parser Comando
 comandoP =
-  try (incrementoP)
-  <|> try (atribuicaoP)
+  try incrementoP
+  <|> try atribuicaoP
   <|> imprimaP
   <|> inicializacaoP
   <|> declaracaoP
   <|> seP
   <|> enquantoP
+  <|> chamadaCmdP
     where
       incrementoP :: Parser Comando
       incrementoP = do
@@ -157,33 +159,38 @@ comandoP =
         tokenP FimFaca
         end <- tokenP FimEnquanto
         return (EnquantoCmd (Pos start end) cond cmdsThen)
----------------------------------------
----------------------------------------
 
---- ⛔⛔⛔ ⚠⚠⚠CRIA O PARSER DO PROGRAMA AQUI ☣☣☣⛔⛔⛔---
--- Porque não chamar de programaP?
-topLevelP :: Parser TopLevel
-topLevelP = 
-    (TLProcedimento <$> procedimentoP)
-   <|> (TLComando <$> comandoP)
+      chamadaCmdP :: Parser Comando
+      chamadaCmdP = do
+        p <- idP
+        args <- parens $ sepBy exprP (tokenP Virgula)
+        tokenP PontoVirgula
+        return (ChamadaCmd (getPos p) p args)
+---------------------------------------
+---------------------------------------
+adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
+adicionarProcedimento p (Programa ps cs) = Programa (p : ps) cs
+
+adicionarComando :: Comando -> Programa -> Programa
+adicionarComando c (Programa ps cs) = Programa ps (c : cs)
 
 programaP :: Parser Programa
-programaP = do
-  tls <- many topLevelP
-  eof
-  return (Programa tls)  
-
-procedimentoP :: Parser ProcedimentoR
-procedimentoP = do
-  start <- tokenP Procedimento
-  id <- idP
-  paresq <- tokenP ParEsq
-  parametros <- sepBy parametroP (tokenP Virgula)
-  pardir <- tokenP ParDir
-  tokenP DoisPontos
-  cmds <- many comandoP
-  end <- tokenP FimProcedimento
-  return (ProcedimentoR (Pos start end) id parametros cmds)
+programaP
+  =   (adicionarProcedimento <$> procedimentoP <*> programaP)
+  <|> (adicionarComando <$> comandoP <*> programaP) 
+  <|> (pure (Programa [] []) <* eof)
+  where
+    procedimentoP :: Parser ProcedimentoR
+    procedimentoP = do
+      start <- tokenP Procedimento
+      id <- idP
+      paresq <- tokenP ParEsq
+      parametros <- sepBy parametroP (tokenP Virgula)
+      pardir <- tokenP ParDir
+      tokenP DoisPontos
+      cmds <- many comandoP
+      end <- tokenP FimProcedimento <?> "FIM_PROCEDIMENTO."
+      return (ProcedimentoR (Pos start end) id parametros cmds)
 
 -- Isso aqui não vai funcionar
 parametroP :: Parser Parametro
@@ -251,10 +258,29 @@ exprP = buildExpressionParser table term
       tokenP tk
       pure $ \e -> EOpUn (getPos e) op e
 
+    convP :: Parser Expr
+    convP = 
+      choice
+        [ try $ convP' op tok
+        | (op, tok) <-
+            [ (ConvInt, TInt)
+            , (ConvReal, TReal)
+            , (ConvBool, TBool)
+            , (ConvNada, Nada)
+            , (ConvString, TString)
+            , (ConvFloat, TFloat)
+            ]
+        ]
+
+    convP' op tok = do
+      start <- tokenP tok
+      e <- parens exprP
+      return $ EOpUn (getPos e) op e
+
     term =
         try chamadaP
         <|> try indiceP
         <|> ELit <$> litP
         <|> EVar <$> idP
+        <|> convP
         <|> parens exprP
--- TEM QUE IDENTAR GERALDO

@@ -2,6 +2,14 @@
 
 - Todos os nextPos do Parser estão errados
 
-- Falta listas
+- Coloquei array num canto aí no Repr.hs, depois tem que ver se o nome é array mesmo
 
--- Coloquei array num canto aí no Repr.hs, depois tem que ver se o nome é array mesmo
+- Tipos estruturados: Listas, Matrizes, Enums, Registro... etc
+
+- Ler...
+
+- Lógica do se/enquanto tem que mudar
+
+- TUDO RELACIONADO A CHECAGEM DE TIPOS!!!!!!
+
+- Funções ainda nem existem

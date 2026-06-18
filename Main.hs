@@ -8,6 +8,8 @@ import Interpreter
 
 main :: IO ()
 main = do
-  let tok = tokenize "IMPRIMA NADA; IMPRIMA 3.12; IMPRIMA 3.54r;"
-  let Right ast = parse programaP "" tok
-  run (eval ast)
+  prog <- readFile "programa.pt"
+  let tok = tokenize prog
+  case (parse programaP "" tok) of
+    Right ast -> run (eval ast)
+    Left error -> print error

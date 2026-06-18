@@ -1,0 +1,18 @@
+PROCEDIMENTO soma_imprime (a :: Int, b :: Int):
+  INICIALIZE c :: Int COM a + b;
+  IMPRIMA c;
+FIM_PROCEDIMENTO.
+
+PROCEDIMENTO multiplica_imprime(a :: Int):
+  INICIALIZE c :: INT COM a * d;
+  IMPRIMA c;
+FIM_PROCEDIMENTO.
+
+INICIALIZE a :: Real COM 12.2r;
+INICIALIZE b :: Int COM 2;
+INICIALIZE c :: Real COM 13.3r;
+INICIALIZE d :: Int COM 3;
+
+soma_imprime(b, d);
+multiplica_imprime(b);
+IMPRIMA c;
