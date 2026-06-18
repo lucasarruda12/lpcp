@@ -32,6 +32,7 @@ instance Show Valor where
 data Erro 
   = TypeError Pos
   | UndefinedVariable Pos
+  | AlreadyDefinedVariable Pos
   | IncorrectNumberOfParameters
   | Context Pos Erro
   deriving (Show)
@@ -42,12 +43,13 @@ comPosicao p m =
 
 type EvalM = ExceptT Erro (StateT Ambiente IO)
 
+type Escopo = String
+
 data Ambiente = Am
-  { stackLocal :: [Map.Map Id Valor]
-  , stackGlobal :: Map.Map Id Valor
-  , heap :: Map.Map Int Valor 
+  { memoria :: Map.Map (Escopo, Id) [Valor]
   , ps :: [ProcedimentoR]
-  , subprograma :: Bool
+  , escopo :: Escopo
+  , cadeia_estatica :: [Escopo]
   --, tipos
   --, fs
   -- ...
@@ -55,33 +57,30 @@ data Ambiente = Am
   deriving(Show)
 
 ambienteVazio :: Ambiente
-ambienteVazio = Am [] Map.empty Map.empty [] False
+ambienteVazio = Am Map.empty [] [] []
 
 addVar :: Id -> Valor -> EvalM ()
-addVar id v = do
+addVar nome v = do
   -- TODO: Checar se já existe?
-  sl <- gets stackLocal
-  case sl of
-    []      -> modify $ \am -> am { stackGlobal = Map.insert id v (stackGlobal am) }
-    (s:ss)  -> modify $ \am -> am { stackLocal = (Map.insert id v s) : ss }
+  scp <- gets escopo
+  mem <- gets memoria
+  case Map.lookup (scp, nome) mem of
+    Just _ -> throwError $ AlreadyDefinedVariable (getPos nome)
+    Nothing -> do
+      modify $ \am 
+        -> am { memoria = Map.insertWith (++) (scp, nome) [v] (memoria am) }
 
 getVar :: Id -> EvalM (Valor)
-getVar id = do
-  am <- get
-  let sub = subprograma am
-  case getVar' (stackLocal am) am sub of
-    Just v -> return v
-    Nothing -> throwError $ UndefinedVariable (getPos id)
+getVar nome = do
+  scp <- gets escopo
+  mem <- gets memoria
+  ces <- gets cadeia_estatica
+  getVar' (scp:ces) mem
   where
-    getVar' pilhas am sub =
-      case pilhas of
-        [] -> Map.lookup id (stackGlobal am)
-        (s : ss) -> 
-          case Map.lookup id s of
-            Nothing -> if sub 
-              then Nothing
-              else getVar' ss am sub
-            Just v -> Just v
+    getVar' []     mem = throwError $ UndefinedVariable (getPos nome)
+    getVar' (e:es) mem = case Map.lookup (e, nome) mem of
+      Just (v:_) -> return v
+      _ -> getVar' es mem
 
 getProc :: Id -> EvalM (ProcedimentoR)
 getProc nome = do
@@ -232,16 +231,20 @@ instance Evaluavel Comando where
 
 instance Evaluavel (ProcedimentoR, [Valor]) where
   eval (p, vs) = do
-    prevStackLocal <- gets stackLocal
+    ces <- gets cadeia_estatica
+    scp <- gets escopo
     modify $ \am -> 
-      am { stackLocal = [ Map.empty ], subprograma = True }
+      am { cadeia_estatica = [ "main" ], escopo = nome }
     add pars vs
     mapM eval cs
     modify $ \am ->
-      am { stackLocal = prevStackLocal }
+      am { cadeia_estatica = ces, escopo = scp }
     return VNada
     where
-      (ProcedimentoR pos _ pars cs) = p
+      (ProcedimentoR pos i pars cs) = p
+      (IdR _ nome) = i
+
+
       add :: [Parametro] -> [Valor] -> EvalM ()
       add ((Parametro n _ _) : ps) (v : vs) = addVar n v *> add ps vs
       add [] [] = pure ()
@@ -250,7 +253,7 @@ instance Evaluavel (ProcedimentoR, [Valor]) where
 instance Evaluavel Programa where
   eval (Programa ps cs) = do
     modify $ \amb ->
-      amb { ps = ps } 
+      amb { ps = ps, escopo = "main" } 
     mapM_ eval cs
     return VNada
 
