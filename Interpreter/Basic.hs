@@ -21,6 +21,7 @@ data Ambiente = Am
   , ps :: [ProcedimentoR]
   , escopo :: Escopo
   , cadeia_estatica :: [Escopo]
+  , contagem_de_blocos :: Int
   --, tipos
   --, fs
   --, contador_de_escopo
@@ -28,7 +29,7 @@ data Ambiente = Am
   deriving(Show)
 
 ambienteVazio :: Ambiente
-ambienteVazio = Am Map.empty [] [] []
+ambienteVazio = Am Map.empty [] [] [] 0
 
 data Valor 
   = VInt Int
@@ -47,6 +48,13 @@ instance Show Valor where
   show VNada = "Nada"
 
 type Escopo = String
+
+novoBloco :: String -> EvalM (Escopo)
+novoBloco s = do
+  scp <- (s ++) . show <$> gets contagem_de_blocos
+  modify $ \am
+    -> am { contagem_de_blocos = contagem_de_blocos am + 1 }
+  return scp
 
 addVar :: Id -> Valor -> EvalM ()
 addVar nome v = do
@@ -68,14 +76,26 @@ getVar nome = do
       Just (v:_) -> return v
       _ -> getVar' es mem
 
-popEscopo :: Escopo -> EvalM ()
-popEscopo scp = do
+comEscopo :: ([Escopo] -> [Escopo]) -> Escopo -> EvalM a -> EvalM a
+comEscopo entrar nome acao = do
+  ces <- gets cadeia_estatica
+  scp <- gets escopo
+  modify $ \am -> 
+    am { cadeia_estatica = scp : (entrar ces), escopo = nome }
+
+  v <- acao
+
   mem <- gets memoria
-  modify $ \am
-    -> am { memoria = Map.mapWithKey (f scp) mem }
-  where
-    f :: Escopo -> (Escopo, Id) -> [Valor] -> [Valor]
-    f scp (scp', _) = if scp == scp' then drop 1 else id
+  modify $ \am ->
+    am { cadeia_estatica = ces
+       , escopo = scp
+       , memoria = Map.mapWithKey (limpar nome) mem 
+       }
+
+  return v
+    where
+      limpar :: Escopo -> (Escopo, Id) -> [Valor] -> [Valor]
+      limpar scp (scp', _)  = if scp == scp' then drop 1 else id
 
 getProc :: Id -> EvalM (ProcedimentoR)
 getProc nome = do

@@ -27,35 +27,47 @@ instance Evaluavel Comando where
     proc <- getProc nome
     eval (proc, vs)
 
-  eval loop@(EnquantoCmd p ((e, cmds):uncs) = do
-    v <- eval e
-    case v of
-      (VBool True) -> do
-        mapM_ eval cmds
-        eval loop
-      (VBool False) -> do
-        eval (EnquantoCmd p uncs)
-      _ -> throwError (TypeError p)
-  eval (EnquantoCmd p []) = pure VNada
+  eval (EnquantoCmd p secs) = do
+    scp <- novoBloco "ENQUANTO"
 
-  eval (SeCmd p ((e, cmds):uncs)) = do
-    v <- eval e 
-    case v of
-      (VBool b) -> if b then (mapM_ eval cmds *> pure VNada) else eval (SeCmd p uncs)
-      _ -> throwError $ TypeError p
-  eval (SeCmd p []) = throwError $ UnexaustivePatterns p
+    let go [] = pure VNada
+
+        go ((e,cmds):uncs) = do
+          v <- eval e
+          case v of
+            VBool True -> do
+              comEscopo id scp (mapM_ eval cmds)
+              go secs
+
+            VBool False -> go uncs
+
+            _ -> throwError (TypeError p)
+
+    go secs 
+          
+
+  eval (SeCmd p secs) = do
+    scp <- novoBloco "SE"
+
+    let go [] = throwError (UnexaustivePatterns p)
+
+        go ((e,cmds):uncs) = do
+          v <- eval e
+          case v of
+            VBool True -> do
+              comEscopo id scp (mapM_ eval cmds)
+              return VNada
+
+            VBool False -> go uncs
+
+            _ -> throwError (TypeError p)
+
+    go secs 
 
 instance Evaluavel (ProcedimentoR, [Valor]) where
-  eval (p, vs) = do
-    ces <- gets cadeia_estatica
-    scp <- gets escopo
-    modify $ \am -> 
-      am { cadeia_estatica = [ "main" ], escopo = nome }
-    add pars vs
-    mapM eval cs
-    modify $ \am ->
-      am { cadeia_estatica = ces, escopo = scp }
-    popEscopo nome
+  eval (p, vs) = comEscopo (const ["main"]) nome $ do
+    add pars vs -- Inicializa os parâmetros na memória
+    mapM eval cs -- Avalia os comandos
     return VNada
     where
       (ProcedimentoR pos i pars cs) = p
