@@ -27,6 +27,17 @@ instance Evaluavel Comando where
     proc <- getProc nome
     eval (proc, vs)
 
+  eval loop@(EnquantoCmd p ((e, cmds):uncs) = do
+    v <- eval e
+    case v of
+      (VBool True) -> do
+        mapM_ eval cmds
+        eval loop
+      (VBool False) -> do
+        eval (EnquantoCmd p uncs)
+      _ -> throwError (TypeError p)
+  eval (EnquantoCmd p []) = pure VNada
+
   eval (SeCmd p ((e, cmds):uncs)) = do
     v <- eval e 
     case v of

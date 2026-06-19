@@ -71,8 +71,7 @@ data Comando
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
   | SeCmd Pos [(Expr, [Comando])]
-  -- | EnquantoCmd Pos [(Expr, [Comando])]
-  | EnquantoCmd Pos Expr [Comando]
+  | EnquantoCmd Pos [(Expr, [Comando])]
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
   | ChamadaCmd Pos Id [Expr]

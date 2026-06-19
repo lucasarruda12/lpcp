@@ -158,13 +158,9 @@ comandoP =
       enquantoP = do
         start <- tokenP Enquanto
         tokenP DoisPontos
-        cond <- exprP
-        tokenP Faca
-        tokenP DoisPontos
-        cmdsThen <- many comandoP
-        tokenP FimFaca
+        unc <- many unidadeCondicionalP
         end <- tokenP FimEnquanto
-        return (EnquantoCmd (Pos start end) cond cmdsThen)
+        return (EnquantoCmd (Pos start end) unc)
 
       chamadaCmdP :: Parser Comando
       chamadaCmdP = do
