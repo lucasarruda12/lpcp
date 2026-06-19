@@ -70,8 +70,9 @@ data Comando
   = Atribuicao Pos Atribuendo Expr
   | Inicializacao Pos Id Tipo Expr
   | Declaracao Pos Id Tipo
-  | SeCmd Pos Expr [Comando] [Comando] -- coloquei esse SeCmd para nao dar mais conflito entre o Lexer e o Repr
-  | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
+  | SeCmd Pos [(Expr, [Comando])]
+  -- | EnquantoCmd Pos [(Expr, [Comando])]
+  | EnquantoCmd Pos Expr [Comando]
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
   | ChamadaCmd Pos Id [Expr]

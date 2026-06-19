@@ -12,4 +12,5 @@ main = do
   let tok = tokenize prog
   case (parse programaP "" tok) of
     Right ast -> run (eval ast)
-    Left error -> print error
+    Left error -> 
+      print error

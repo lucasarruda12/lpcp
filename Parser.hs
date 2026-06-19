@@ -139,14 +139,20 @@ comandoP =
       seP :: Parser Comando
       seP = do
         start <- tokenP Se
-        cond <- exprP
         tokenP DoisPontos
-        cmdsThen <- many comandoP
-        tokenP Senao
-        tokenP DoisPontos
-        cmdsElse <- many comandoP
+        unc <- many unidadeCondicionalP
         end <- tokenP FimSe
-        return(SeCmd (Pos start end) cond cmdsThen cmdsElse)
+        return (SeCmd (Pos start end) unc)
+
+      unidadeCondicionalP :: Parser (Expr, [Comando])
+      unidadeCondicionalP = do
+        cond <- exprP
+        tokenP Virgula
+        tokenP Faca
+        tokenP DoisPontos
+        cmds <- many comandoP
+        tokenP FimFaca
+        return (cond, cmds)
       
       enquantoP :: Parser Comando
       enquantoP = do
