@@ -1,21 +1,45 @@
-PROCEDIMENTO imprima_de_um_em_um_voltando(a :: Int, b :: Int):
-  SE:
-    b > 0, FAÇA:
-      INICIALIZE c :: Int COM a + b;
-      IMPRIMA c;
-      imprima_de_um_em_um_voltando(a, b - 1);
-    FIM_FAÇA.
+INICIALIZE entrada :: Int COM int(leia);
 
-    b == 0, FAÇA:
-      IMPRIMA "PAREI.";
-    FIM_FAÇA.
+INICIALIZE i1 :: Int COM 0;
+INICIALIZE i2 :: Int COM 0;
+INICIALIZE i3 :: Int COM 0;
+INICIALIZE i4 :: Int COM 0;
 
-    b < 0, FAÇA:
-    FIM_FAÇA.
-  FIM_SE.
-FIM_PROCEDIMENTO.
+ENQUANTO:
+  entrada >= 0, FAÇA:
+    SE:
+      entrada <= 25, FAÇA:
+        i1 = i1 + 1;
+      FIM_FAÇA.
 
-INICIALIZE b :: Int COM 0;
-INICIALIZE d :: Int COM 5;
+      entrada <= 50, FAÇA:
+        i2 = i2 + 1;
+      FIM_FAÇA.
 
-imprima_de_um_em_um_voltando(b, d);
+      entrada <= 75, FAÇA:
+        i3 = i3 + 1;
+      FIM_FAÇA.
+
+      entrada <= 100, FAÇA:
+        i4 = i4 + 1;
+      FIM_FAÇA.
+
+      entrada > 100, FAÇA:
+      FIM_FAÇA.
+
+    FIM_SE.
+    entrada = int(leia);
+  FIM_FAÇA.
+FIM_ENQUANTO.
+
+IMPRIMA "no intervalo [0, 25]:";
+IMPRIMA i1;
+
+IMPRIMA "no intervalo [26, 50]:";
+IMPRIMA i2;
+
+IMPRIMA "no intervalo [51, 75]:";
+IMPRIMA i3;
+
+IMPRIMA "no intervalo [76, 100]:";
+IMPRIMA i4;

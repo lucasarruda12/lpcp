@@ -37,7 +37,7 @@ tokens :-
   "*" {\p _ -> Token p Vezes}
   "**" {\p _ -> Token p VezesVezes}
   "." {\p _ -> Token p Ponto}
-  
+
   PROCEDIMENTO {\p _ -> Token p Procedimento}
   FIM_PROCEDIMENTO. {\p _ -> Token p FimProcedimento}
   ENQUANTO {\p _ -> Token p Enquanto}
@@ -61,6 +61,9 @@ tokens :-
   real {\p _ -> Token p TReal}
   bool {\p _ -> Token p TBool}
   string {\p _ -> Token p TString}
+
+  -- Leia
+  leia {\p _ -> Token p Leia}
 
   -- adicionando BOOLS --
   VERDADEIRO {\p _ -> Token p (LitBool True)}
@@ -153,6 +156,7 @@ data TokenKind
   | TReal
   | TBool
   | TString
+  | Leia
 
   deriving (Eq, Show)
 

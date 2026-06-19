@@ -7,6 +7,7 @@ import GHC.Float (float2Double, double2Float)
 
 import Interpreter.Basic
 import Interpreter.Erro
+import System.IO (getLine)
 
 import Repr
 
@@ -21,6 +22,9 @@ instance Evaluavel Lit where
 instance Evaluavel Expr where
   eval (ELit l) = eval l
   eval (EVar id) = getVar id
+
+  eval (ELeia p) = VString <$> liftIO getLine
+
   eval (EOpBin p op e1 e2) = do
     v1 <- eval e1
     v2 <- eval e2

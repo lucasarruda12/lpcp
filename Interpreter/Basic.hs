@@ -71,10 +71,33 @@ getVar nome = do
   ces <- gets cadeia_estatica
   getVar' (scp:ces) mem
   where
-    getVar' []     mem = throwError $ UndefinedVariable (getPos nome)
+    getVar' []     _ = throwError $ UndefinedVariable (getPos nome)
     getVar' (e:es) mem = case Map.lookup (e, nome) mem of
       Just (v:_) -> return v
       _ -> getVar' es mem
+
+modificarVar :: Id -> Valor -> EvalM ()
+modificarVar nome valor = do
+  mem <- gets memoria
+  e <- resolveVar nome
+  
+  case Map.lookup (e, nome) mem of
+    Just (_ : vs) -> 
+      modify $ \am -> am {memoria = Map.insert (e, nome) (valor:vs) mem}
+    _ -> throwError (UndefinedVariable $ getPos nome)
+
+resolveVar :: Id -> EvalM Escopo
+resolveVar nome = do
+  scp <- gets escopo
+  ces <- gets cadeia_estatica
+  mem <- gets memoria
+  resolve (scp : ces) mem
+  where 
+    resolve :: [Escopo] -> Map.Map (Escopo, Id) [Valor] -> EvalM Escopo
+    resolve [] _ = throwError (UndefinedVariable $ getPos nome)
+    resolve (e:es) mem = case Map.lookup (e, nome) mem of
+      Nothing    -> resolve es mem
+      Just (v:_) -> return e
 
 comEscopo :: ([Escopo] -> [Escopo]) -> Escopo -> EvalM a -> EvalM a
 comEscopo entrar nome acao = do

@@ -10,6 +10,13 @@ import Interpreter.Expr
 import Repr
 
 instance Evaluavel Comando where
+  eval (Atribuicao p lv e) = do
+    rv <- eval e
+    case lv of
+      AId nome -> modificarVar nome rv *> return VNada
+      -- TODO: Atribuição de lista e de Referência!
+      _ -> throwError (FaltaImplementar)
+
   eval (ImprimaCmd _ e) = do
     v <- eval e
     liftIO $ print v

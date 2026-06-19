@@ -110,6 +110,7 @@ instance Positional Lit where
 data Expr
   = ELit Lit
   | EVar Id
+  | ELeia Pos
   | EChamada Pos Id [Expr]
   | EIndice Pos Expr Expr
   | EOpBin Pos OpBin Expr Expr

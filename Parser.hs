@@ -115,7 +115,7 @@ comandoP =
         e <- exprP
         end <- tokenP PontoVirgula
         return (ImprimaCmd (Pos start end) e)
-      
+
       inicializacaoP :: Parser Comando
       inicializacaoP = do
         start <- tokenP Inicialize
@@ -195,7 +195,6 @@ programaP
       return (ProcedimentoR (Pos start end) id parametros cmds)
 
 -- Isso aqui não vai funcionar
-parametroP :: Parser Parametro
 parametroP = do
   ref <- optionMaybe(tokenP EComercial)
   id <- idP
@@ -285,4 +284,5 @@ exprP = buildExpressionParser table term
         <|> ELit <$> litP
         <|> EVar <$> idP
         <|> convP
+        <|> (do p <- tokenP Leia; return (ELeia (Pos p p)))
         <|> parens exprP
