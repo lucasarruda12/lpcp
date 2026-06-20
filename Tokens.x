@@ -86,7 +86,9 @@ tokens :-
 -- Record Syntax: 
 -- devtut.github.io/haskell/record-syntax.html
 data Token = Token AlexPosn TokenKind
-  deriving (Show)
+
+instance Show Token where
+  show (Token _ tk) = show tk
 
 position :: Token -> (Int, Int, Int)
 position (Token (AlexPn x y z) _) = (x, y, z)
@@ -157,9 +159,67 @@ data TokenKind
   | TBool
   | TString
   | Leia
+  deriving (Eq)
 
-  deriving (Eq, Show)
-
+instance Show TokenKind where
+  show Procedimento = "PROCEDIMENTO"
+  show FimProcedimento = "FIM_PROCEDIMENTO."
+  show Imprima = "IMPRIMA"
+  show Enquanto = "ENQUANTO"
+  show FimEnquanto = "FIM_ENQUANTO."
+  show Faca ="FAÇA"
+  show FimFaca = "FIM_FAÇA."
+  show Se = "SE"
+  show Senao = "SENÃO"
+  show FimSe = "FIM_SE."
+  show Inicialize = "INICIALIZE"
+  show Com = "COM"
+  show (Id s) = s
+  show (Tipo s) = s
+  show ParEsq ="("
+  show ParDir = ")"
+  show ColEsq = "["
+  show ColDir = "]"
+  show QuatroPontos = "::"
+  show DoisPontos = ":"
+  show EComercial = "&"
+  show Seta = "->"
+  show PontoVirgula = ";"
+  show Virgula = ","
+  show (LitInt x) = show x
+  show (LitFloat f) = show f
+  show (LitReal d) = show d
+  show (LitBool b) = show b
+  show (LitString s) = s
+  show ELogico = "AND"
+  show OuLogico = "OR"
+  show NaoLogico = "NOT"
+  show MenorQue = "<"
+  show Igual = "="
+  show Ponto = "."
+  show IgualIgual = "=="
+  show Diferente = "!="
+  show Mais = "+"
+  show Menos = "-"
+  show Divide = "/"
+  show Porcento = "%"
+  show Vezes = "*"
+  show VezesVezes = "**"
+  show MaisMais = "++"
+  show MaiorQue = ">"
+  show MaiorIgual = ">="
+  show MenorIgual = "<=" 
+  show AspasDuplas = "\"\""
+  show Pipe= "|"
+  show Declare= "DECLARE"
+  show Nada= "NADA"
+  show TInt= "int"
+  show TFloat= "float"
+  show TReal= "real"
+  show TBool= "bool"
+  show TString= "string"
+  show Leia= "leia"
+   
 tokenize :: String -> [Token]
 tokenize = alexScanTokens
 }

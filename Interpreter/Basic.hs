@@ -11,10 +11,10 @@ type EvalM = ExceptT Erro (StateT Ambiente IO)
 
 comPosicao :: Pos -> EvalM a -> EvalM a
 comPosicao p m = 
-  catchError m (\err -> throwError (Context p err))
+  catchError m (throwError . Context p)
 
 class Evaluavel a where
-  eval :: a -> EvalM (Valor)
+  eval :: a -> EvalM Valor
 
 data Ambiente = Am
   { memoria :: Map.Map (Escopo, Id) [Valor]
@@ -49,9 +49,9 @@ instance Show Valor where
 
 type Escopo = String
 
-novoBloco :: String -> EvalM (Escopo)
+novoBloco :: String -> EvalM Escopo
 novoBloco s = do
-  scp <- (s ++) . show <$> gets contagem_de_blocos
+  scp <- gets ((s ++) . show . contagem_de_blocos)
   modify $ \am
     -> am { contagem_de_blocos = contagem_de_blocos am + 1 }
   return scp
@@ -64,7 +64,7 @@ addVar nome v = do
   modify $ \am 
     -> am { memoria = Map.insertWith (++) (scp, nome) [v] (memoria am) }
 
-getVar :: Id -> EvalM (Valor)
+getVar :: Id -> EvalM Valor
 getVar nome = do
   scp <- gets escopo
   mem <- gets memoria
@@ -104,7 +104,7 @@ comEscopo entrar nome acao = do
   ces <- gets cadeia_estatica
   scp <- gets escopo
   modify $ \am -> 
-    am { cadeia_estatica = scp : (entrar ces), escopo = nome }
+    am { cadeia_estatica = scp : entrar ces, escopo = nome }
 
   v <- acao
 
@@ -120,7 +120,7 @@ comEscopo entrar nome acao = do
       limpar :: Escopo -> (Escopo, Id) -> [Valor] -> [Valor]
       limpar scp (scp', _)  = if scp == scp' then drop 1 else id
 
-getProc :: Id -> EvalM (ProcedimentoR)
+getProc :: Id -> EvalM ProcedimentoR
 getProc nome = do
   ps <- gets ps
   case lookup nome ps of
