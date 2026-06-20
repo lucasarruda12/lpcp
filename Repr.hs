@@ -5,7 +5,10 @@ import Lexer
 data Pos = Pos 
   { inicio :: AlexPosn
   , fim    :: AlexPosn }
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
+
+instance Show Pos where
+  show (Pos (AlexPn _ l c) _) = "[l" ++ show l ++ ":c" ++ show c ++ "]"
 
 class Positional a where
   getPos :: a -> Pos
@@ -17,7 +20,9 @@ mergePos a b = Pos s e
     (Pos _ e) = getPos b
 
 data Id = IdR Pos String
-  deriving (Show)
+
+instance Show Id where
+  show (IdR _ nome) = nome
 
 instance Eq Id where
   (IdR _ s) == (IdR _ s') = s == s'
@@ -29,13 +34,18 @@ instance Positional Id where
   getPos (IdR p _) = p
 
 data Tipo
-  = TId Id
-  | TList Tipo
-  deriving (Show)
+  = IdT Id
+  | IntT
+  | StringT
+  | FloatT
+  | BoolT
+  | RealT
+  | ListT Tipo
+  deriving (Show, Ord, Eq)
 
 instance Positional Tipo where
-  getPos (TId id) = getPos id
-  getPos (TList t) = getPos t
+  getPos (IdT id) = getPos id
+  getPos (ListT t) = getPos t
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
   deriving(Show)
@@ -77,6 +87,9 @@ data Comando
   | ChamadaCmd Pos Id [Expr]
   deriving (Show)
 
+instance Positional Comando where
+  getPos (ImprimaCmd p _) = p
+
 -- == Tudo relacionado a expressões ==
 data OpBin
   = Soma | Sub | Mul | Div
@@ -84,13 +97,26 @@ data OpBin
   | MenorIgualOp | MaiorIgualOp
   | IgualOp | DiferenteOp
   | AndOp | OrOp
-  deriving (Show)
+  deriving (Eq, Ord)
+
+instance Show OpBin where
+  show Soma = "+"
+  show Sub = "-"
+  show Mul = "*"
+  show Div = "/"
+  show Exp = "**"
+  show Mod = "%"
+  show Menor = "<"
+  show Maior = ">"
+  show MenorIgualOp = "<="
+  show MaiorIgualOp = ">="
+  show IgualOp = "=="
+  show DiferenteOp = "!="
+  show AndOp = "AND"
+  show OrOp = "Or"
 
 data OpUn
-  = Neg | NaoOp | ConvInt | ConvBool
-  | ConvReal | ConvString | ConvNada
-  | ConvFloat
-
+  = Neg | NaoOp | Conv Tipo
   deriving (Show)
 
 data Lit
@@ -100,7 +126,14 @@ data Lit
   | LFloat Pos Float
   | LReal Pos Double
   | LNada Pos
-  deriving (Show)
+
+instance Show Lit where
+  show (LInt _ x) = show x
+  show (LString _ x) = show x
+  show (LBool _ x) = show x
+  show (LFloat _ x) = show x
+  show (LReal _ x) = show x
+  show (LNada _) = "NADA"
 
 instance Positional Lit where
   getPos (LInt p _) = p
@@ -115,7 +148,13 @@ data Expr
   | EIndice Pos Expr Expr
   | EOpBin Pos OpBin Expr Expr
   | EOpUn Pos OpUn Expr
-  deriving(Show)
+
+instance Show Expr where
+  show (ELit l) = show l
+  show (EVar v) = show v
+  show (ELeia p) = "leia" ++ show p
+  show (EOpBin p op e1 e2) = "(" ++ show e1 ++ " " ++ show op ++ " " ++ show e2 ++ ")"
+  show (EOpUn p op e) = show op ++ show e ++ show p
 
 instance Positional Expr where
   getPos (ELit l) = getPos l

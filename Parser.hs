@@ -62,12 +62,20 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
       return (LNada (Pos p p))
  
 tipoP :: Parser Tipo
-tipoP = TId <$> idP 
+tipoP 
+  = (do 
+    IdR _ tipo <- idP
+    case tipo of
+      "Int" -> return IntT
+      "Float" -> return FloatT
+      "Real" -> return RealT
+      "Bool" -> return BoolT
+      "String" -> return StringT)
   <|> (do
     tokenP ColEsq
     t <- tipoP
     tokenP ColDir
-    return $ TList t)
+    return $ ListT t)
 
 ---------------------------------------
 -- Tudo sobre Comandos ----------------
@@ -258,12 +266,11 @@ exprP = buildExpressionParser table term <?> "Expression"
       choice
         [ try $ convP' op tok
         | (op, tok) <-
-            [ (ConvInt, TInt)
-            , (ConvReal, TReal)
-            , (ConvBool, TBool)
-            , (ConvNada, Nada)
-            , (ConvString, TString)
-            , (ConvFloat, TFloat)
+            [ (Conv IntT, TInt)
+            , (Conv RealT, TReal)
+            , (Conv BoolT, TBool)
+            , (Conv StringT, TString)
+            , (Conv FloatT, TFloat)
             ]
         ]
 
