@@ -24,4 +24,4 @@ run m = do
   case result of
     Left err -> print err
     Right _ -> pure ()
-  -- print ambiente
+  print ambiente

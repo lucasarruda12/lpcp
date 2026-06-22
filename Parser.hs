@@ -4,62 +4,56 @@ import Lexer
 import Repr
 import Text.Parsec
 import Text.Parsec.Expr
-import Text.Parsec (tokenPrim)
-import Data.Maybe (Maybe(Nothing))
+import Text.Parsec.Pos (newPos)
 import Data.Maybe (isJust)
-import Text.XHtml (start)
 
 type Parser a = Parsec [Token] () a
 
 ---------------------------------------
 -- Helpers ----------------------------
 parens :: Parser a -> Parser a
-parens p = do
-  tokenP ParEsq
-  t <- p
-  tokenP ParDir
-  return t
+parens p = tokenP ParEsq *> p <* tokenP ParDir
+
+updatePos :: SourcePos -> Token -> s -> SourcePos
+updatePos sp (Token (AlexPn _ line col) _) _ =
+  newPos (sourceName sp) line col
 
 -- Joga fora o Token
 tokenP :: TokenKind -> Parser AlexPosn
-tokenP k = tokenPrim show nextPos test
+tokenP k = tokenPrim show updatePos test
    where
     test t@(Token p k')
       | k == k'   = Just p
       | otherwise = Nothing
-    nextPos pos _ _     = pos
 ---------------------------------------
 ---------------------------------------
 
 idP :: Parser Id
-idP = tokenPrim show nextPos test
+idP = tokenPrim show updatePos test
   where
     test (Token p (Id s)) = Just (IdR (Pos p p) s)
     test _ = Nothing
-    nextPos pos _ _ = pos
 
 litP :: Parser Lit
 litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNadaP
   where
-    nextPos pos _ _ = pos
-
-    litIntP = tokenPrim show nextPos testInt
+    litIntP = tokenPrim show updatePos testInt
     testInt (Token p (LitInt x)) = Just (LInt (Pos p p) x)
     testInt _ = Nothing
 
-    litStringP = tokenPrim show nextPos testString
+    litStringP = tokenPrim show updatePos testString
     testString (Token p (LitString s)) = Just (LString (Pos p p) s)
     testString _ = Nothing
 
-    litBoolP = tokenPrim show nextPos testBool
+    litBoolP = tokenPrim show updatePos testReal
     testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
     testBool _ = Nothing
 
-    litRealP = tokenPrim show nextPos testReal
+    litRealP = tokenPrim show updatePos testReal
     testReal (Token p (LitReal r)) = Just (LReal (Pos p p) r)
     testReal _ = Nothing
 
-    litFloatP = tokenPrim show nextPos testFloat
+    litFloatP = tokenPrim show updatePos testFloat
     testFloat (Token p (LitFloat f)) = Just (LFloat (Pos p p) f)
     testFloat _ = Nothing
 
@@ -68,8 +62,16 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
       return (LNada (Pos p p))
  
 tipoP :: Parser Tipo
-tipoP =
-      try tipoListaP
+tipoP 
+  = (do 
+    IdR _ tipo <- idP
+    case tipo of
+      "Int" -> return IntT
+      "Float" -> return FloatT
+      "Real" -> return RealT
+      "Bool" -> return BoolT
+      "String" -> return StringT)
+  <|> try tipoListaP
   <|> try tipoTuplaP
   <|> try tipoDictP
   <|> (TId <$> idP)
@@ -139,7 +141,7 @@ comandoP =
         e <- exprP
         end <- tokenP PontoVirgula
         return (ImprimaCmd (Pos start end) e)
-      
+
       inicializacaoP :: Parser Comando
       inicializacaoP = do
         start <- tokenP Inicialize
@@ -182,13 +184,9 @@ comandoP =
       enquantoP = do
         start <- tokenP Enquanto
         tokenP DoisPontos
-        cond <- exprP
-        tokenP Faca
-        tokenP DoisPontos
-        cmdsThen <- many comandoP
-        tokenP FimFaca
+        unc <- many unidadeCondicionalP
         end <- tokenP FimEnquanto
-        return (EnquantoCmd (Pos start end) cond cmdsThen)
+        return (EnquantoCmd (Pos start end) unc)
 
       chamadaCmdP :: Parser Comando
       chamadaCmdP = do
@@ -208,7 +206,7 @@ programaP :: Parser Programa
 programaP
   =   (adicionarProcedimento <$> procedimentoP <*> programaP)
   <|> (adicionarComando <$> comandoP <*> programaP) 
-  <|> (pure (Programa [] []) <* eof)
+  <|> (Programa [] [] <$ eof)
   where
     procedimentoP :: Parser ProcedimentoR
     procedimentoP = do
@@ -223,7 +221,6 @@ programaP
       return (ProcedimentoR (Pos start end) id parametros cmds)
 
 -- Isso aqui não vai funcionar
-parametroP :: Parser Parametro
 parametroP = do
   ref <- optionMaybe(tokenP EComercial)
   id <- idP
@@ -280,7 +277,7 @@ litDictP = do
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
 exprP :: Parser Expr
-exprP = buildExpressionParser table term
+exprP = buildExpressionParser table term <?> "Expression"
   where
     table =
       [ [ Infix (binOpP VezesVezes Exp) AssocRight
@@ -323,12 +320,11 @@ exprP = buildExpressionParser table term
       choice
         [ try $ convP' op tok
         | (op, tok) <-
-            [ (ConvInt, TInt)
-            , (ConvReal, TReal)
-            , (ConvBool, TBool)
-            , (ConvNada, Nada)
-            , (ConvString, TString)
-            , (ConvFloat, TFloat)
+            [ (Conv IntT, TInt)
+            , (Conv RealT, TReal)
+            , (Conv BoolT, TBool)
+            , (Conv StringT, TString)
+            , (Conv FloatT, TFloat)
             ]
         ]
 
@@ -346,4 +342,5 @@ exprP = buildExpressionParser table term
         <|> ELit <$> litP
         <|> EVar <$> idP
         <|> convP
+        <|> (do p <- tokenP Leia; return (ELeia (Pos p p)))
         <|> parens exprP

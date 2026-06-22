@@ -1,9 +1,4 @@
-PROCEDIMENTO imprima_de_um_em_um_voltando(a :: Int, b :: Int):
-  SE:
-    b > 0, FAÇA:
-      IMPRIMA a + b;
-      imprima_de_um_em_um_voltando(a, b - 1);
-    FIM_FAÇA.
+DECLARE a :: Int;
 
     b == 0, FAÇA:
       IMPRIMA "PAREI.";

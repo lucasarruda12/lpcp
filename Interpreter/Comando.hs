@@ -10,6 +10,13 @@ import Interpreter.Expr
 import Repr
 
 instance Evaluavel Comando where
+  eval (Atribuicao p lv e) = do
+    rv <- eval e
+    case lv of
+      AId nome -> modificarVar nome rv *> return VNada
+      -- TODO: Atribuição de lista e de Referência!
+      _ -> throwError (FaltaImplementar)
+
   eval (ImprimaCmd _ e) = do
     v <- eval e
     liftIO $ print v
@@ -27,24 +34,47 @@ instance Evaluavel Comando where
     proc <- getProc nome
     eval (proc, vs)
 
-  eval (SeCmd p ((e, cmds):uncs)) = do
-    v <- eval e 
-    case v of
-      (VBool b) -> if b then (mapM_ eval cmds *> pure VNada) else eval (SeCmd p uncs)
-      _ -> throwError $ TypeError p
-  eval (SeCmd p []) = throwError $ UnexaustivePatterns p
+  eval (EnquantoCmd p secs) = do
+    scp <- novoBloco "ENQUANTO"
+
+    let go [] = pure VNada
+
+        go ((e,cmds):uncs) = do
+          v <- eval e
+          case v of
+            VBool True -> do
+              comEscopo id scp (mapM_ eval cmds)
+              go secs
+
+            VBool False -> go uncs
+
+            _ -> throwError (TypeError p)
+
+    go secs 
+          
+
+  eval (SeCmd p secs) = do
+    scp <- novoBloco "SE"
+
+    let go [] = throwError (UnexaustivePatterns p)
+
+        go ((e,cmds):uncs) = do
+          v <- eval e
+          case v of
+            VBool True -> do
+              comEscopo id scp (mapM_ eval cmds)
+              return VNada
+
+            VBool False -> go uncs
+
+            _ -> throwError (TypeError p)
+
+    go secs 
 
 instance Evaluavel (ProcedimentoR, [Valor]) where
-  eval (p, vs) = do
-    ces <- gets cadeia_estatica
-    scp <- gets escopo
-    modify $ \am -> 
-      am { cadeia_estatica = [ "main" ], escopo = nome }
-    add pars vs
-    mapM eval cs
-    modify $ \am ->
-      am { cadeia_estatica = ces, escopo = scp }
-    popEscopo nome
+  eval (p, vs) = comEscopo (const ["main"]) nome $ do
+    add pars vs -- Inicializa os parâmetros na memória
+    mapM eval cs -- Avalia os comandos
     return VNada
     where
       (ProcedimentoR pos i pars cs) = p

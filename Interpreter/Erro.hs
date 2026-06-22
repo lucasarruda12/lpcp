@@ -9,4 +9,6 @@ data Erro
   | IncorrectNumberOfParameters
   | UnexaustivePatterns Pos
   | Context Pos Erro
+  | FaltaImplementar
   deriving (Show)
+

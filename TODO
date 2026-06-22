@@ -13,3 +13,6 @@
 - TUDO RELACIONADO A CHECAGEM DE TIPOS!!!!!!
 
 - Funções ainda nem existem
+
+- Do jeito que os blocos estão implementados aqui acontece o seguinte:
+  - Se eu tenho um SE dentro de uma função recursiva, cada ativação desse SE vai ter um escopo diferente. Não acho que tem problema, só é estranho... :/
