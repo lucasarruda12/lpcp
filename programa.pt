@@ -1,15 +1,1 @@
-DECLARE a :: Int;
-
-    b == 0, FAÇA:
-      IMPRIMA "PAREI.";
-    FIM_FAÇA.
-
-    b < 0, FAÇA:
-    FIM_FAÇA.
-  FIM_SE.
-FIM_PROCEDIMENTO.
-
-INICIALIZE b :: Int COM 0;
-INICIALIZE d :: Int COM 5;
-
-imprima_de_um_em_um_voltando(b, d);
+INICIALIZE b :: Bool COM VERDADEIRO;

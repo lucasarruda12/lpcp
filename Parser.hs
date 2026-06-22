@@ -35,7 +35,13 @@ idP = tokenPrim show updatePos test
     test _ = Nothing
 
 litP :: Parser Lit
-litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNadaP
+litP 
+  = litIntP 
+  <|> litStringP 
+  <|> litBoolP 
+  <|> litFloatP 
+  <|> litRealP 
+  <|> litNadaP
   where
     litIntP = tokenPrim show updatePos testInt
     testInt (Token p (LitInt x)) = Just (LInt (Pos p p) x)
@@ -45,7 +51,7 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
     testString (Token p (LitString s)) = Just (LString (Pos p p) s)
     testString _ = Nothing
 
-    litBoolP = tokenPrim show updatePos testReal
+    litBoolP = tokenPrim show updatePos testBool
     testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
     testBool _ = Nothing
 
@@ -66,11 +72,11 @@ tipoP
   = (do 
     IdR _ tipo <- idP
     case tipo of
-      "Int" -> return IntT
-      "Float" -> return FloatT
-      "Real" -> return RealT
-      "Bool" -> return BoolT
-      "String" -> return StringT)
+      "Int" -> return TInt
+      "Float" -> return TFloat
+      "Real" -> return TReal
+      "Bool" -> return TBool
+      "String" -> return TString)
   <|> try tipoListaP
   <|> try tipoTuplaP
   <|> try tipoDictP
@@ -320,11 +326,11 @@ exprP = buildExpressionParser table term <?> "Expression"
       choice
         [ try $ convP' op tok
         | (op, tok) <-
-            [ (Conv IntT, TInt)
-            , (Conv RealT, TReal)
-            , (Conv BoolT, TBool)
-            , (Conv StringT, TString)
-            , (Conv FloatT, TFloat)
+            [ (Conv TInt, Int)
+            , (Conv TReal, Real)
+            , (Conv TBool, Bool)
+            , (Conv TString, String)
+            , (Conv TFloat, Float)
             ]
         ]
 
@@ -339,7 +345,7 @@ exprP = buildExpressionParser table term <?> "Expression"
         <|> try litListaP
         <|> try litTuplaP
         <|> try litDictP
-        <|> ELit <$> litP
+        <|> try (ELit <$> litP)
         <|> EVar <$> idP
         <|> convP
         <|> (do p <- tokenP Leia; return (ELeia (Pos p p)))

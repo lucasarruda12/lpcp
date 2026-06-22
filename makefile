@@ -3,7 +3,7 @@ ALEX 		:= alex
 OUT_DIR := dist
 
 lexer: Tokens.x
-	alex Tokens.x -o dist/Lexer.hs
-	$(GHC) -c dist/Lexer.hs -outputdir dist
+	alex Tokens.x -o Lexer.hs
+	$(GHC) -c Lexer.hs
 
 

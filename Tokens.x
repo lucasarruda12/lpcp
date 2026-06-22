@@ -58,11 +58,11 @@ tokens :-
   NADA {\p _ -> Token p Nada}
 
   -- Tipos
-  int {\p _ -> Token p TInt}
-  float {\p _ -> Token p TFloat}
-  real {\p _ -> Token p TReal}
-  bool {\p _ -> Token p TBool}
-  string {\p _ -> Token p TString}
+  int {\p _ -> Token p Int}
+  float {\p _ -> Token p Float}
+  real {\p _ -> Token p Real}
+  bool {\p _ -> Token p Bool}
+  string {\p _ -> Token p String}
 
   -- Leia
   leia {\p _ -> Token p Leia}
@@ -157,11 +157,11 @@ data TokenKind
   | Pipe
   | Declare
   | Nada
-  | TInt
-  | TFloat
-  | TReal
-  | TBool
-  | TString
+  | Int
+  | Float
+  | Real
+  | Bool
+  | String
   | Leia
   deriving (Eq)
 
@@ -217,11 +217,11 @@ instance Show TokenKind where
   show Pipe= "|"
   show Declare= "DECLARE"
   show Nada= "NADA"
-  show TInt= "int"
-  show TFloat= "float"
-  show TReal= "real"
-  show TBool= "bool"
-  show TString= "string"
+  show Int= "int"
+  show Float= "float"
+  show Real= "real"
+  show Bool= "bool"
+  show String= "string"
   show Leia= "leia"
    
 tokenize :: String -> [Token]

@@ -34,13 +34,13 @@ instance Positional Id where
   getPos (IdR p _) = p
 
 data Tipo
-  = IdT Id
-  | IntT
-  | StringT
-  | FloatT
-  | BoolT
-  | RealT
-  | ListT Tipo
+  = TId Id
+  | TInt
+  | TString
+  | TFloat
+  | TBool
+  | TReal
+  | TList Tipo
   | TTuple [Tipo]
   | TDict Tipo Tipo
   deriving (Show, Eq, Ord)

@@ -41,10 +41,10 @@ instance Show ErroSemanticaEstatica where
   show (NaoDeclarado nome) = "Variável não declarada:" +-+ nome
 
 primitivos :: Set.Set Tipo
-primitivos = Set.fromList [IntT, FloatT, RealT, StringT, BoolT]
+primitivos = Set.fromList [TInt, TFloat, TReal, TString, TBool]
 
 numericos :: Set.Set Tipo
-numericos = Set.fromList [IntT, FloatT, RealT]
+numericos = Set.fromList [TInt, TFloat, TReal]
 
 data TabelaDeSimbolos = TS 
   { ps :: Map.Map String Pos
@@ -88,11 +88,11 @@ chequeExpr e = comContexto (show (getPos e) +-+ "Na expressão" +-+ show e) (che
 
 chequeExpr' :: Expr -> CheqM Tipo
 chequeExpr' (ELit l) = case l of
-  LInt _ _ -> pure IntT
-  LString _ _ -> pure StringT
-  LBool _ _ -> pure BoolT
-  LFloat _ _ -> pure FloatT
-  LReal _ _ -> pure RealT
+  LInt _ _ -> pure TInt
+  LString _ _ -> pure TString
+  LBool _ _ -> pure TBool
+  LFloat _ _ -> pure TFloat
+  LReal _ _ -> pure TReal
 chequeExpr' fe@(EOpUn p op e) = do
   t <- chequeExpr' e
   chequeUnOp (show p +-+ show fe +-+ show p) op t
@@ -100,7 +100,7 @@ chequeExpr' fe@(EOpBin p op e1 e2) = do
   t1 <- chequeExpr' e1
   t2 <- chequeExpr' e2
   chequeOpBin (show p +-+ show fe) op t1 t2
-chequeExpr' (ELeia _) = pure StringT
+chequeExpr' (ELeia _) = pure TString
 chequeExpr' (EVar (IdR p nome)) = getVar nome
 
 chequeUnOp :: String -> OpUn -> Tipo -> CheqM Tipo
@@ -109,11 +109,11 @@ chequeUnOp s op t = comContexto s $ do
     Neg -> 
       if t `Set.member` numericos 
       then return t 
-      else throwError (ErroDeTipo IntT t)
+      else throwError (ErroDeTipo TInt t)
     NaoOp ->
-      if t == BoolT 
-      then return BoolT
-      else throwError (ErroDeTipo BoolT t)
+      if t == TBool 
+      then return TBool
+      else throwError (ErroDeTipo TBool t)
     Conv t2 ->
       if t `Set.member` primitivos
       then return t2
@@ -137,12 +137,12 @@ chequeOpBin c op t1 t2 = comContexto c $ do
       throwError (ErroDeTipo t2 t1)
     () | op_comp ->
       if tipos_iguais
-        then pure BoolT
+        then pure TBool
         else throwError (ErroDeTipo t1 t2)
     () | bool_op ->
-      if t1 == BoolT && t2 == BoolT
-        then pure BoolT
-        else throwError (ErroDeTipo BoolT (if t1 /= BoolT then t1 else t2))
+      if t1 == TBool && t2 == TBool
+        then pure TBool
+        else throwError (ErroDeTipo TBool (if t1 /= TBool then t1 else t2))
 
 comContexto :: String -> CheqM a -> CheqM a
 comContexto s c = 

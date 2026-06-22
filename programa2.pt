@@ -1,5 +1,5 @@
 INICIALIZE lista :: [Int] COM [3, 2, 1];
-INICIALIZE tupla :: (Int, Bool) COM (42, VERDADEIRO);
+INICIALIZE tupla :: (Int, Int) COM (VERDADEIRO, 24);
 INICIALIZE dicionario :: {String: Int} COM {"Bananas": 10, "Macas": 5, "Laranjas": 3};
 
 IMPRIMA lista;
