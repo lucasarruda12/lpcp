@@ -1,3 +1,15 @@
 DECLARE a :: Int;
 
-IMPRIMA 5 * 2 * 3 * 4 + "oi" * 3;
+    b == 0, FAÇA:
+      IMPRIMA "PAREI.";
+    FIM_FAÇA.
+
+    b < 0, FAÇA:
+    FIM_FAÇA.
+  FIM_SE.
+FIM_PROCEDIMENTO.
+
+INICIALIZE b :: Int COM 0;
+INICIALIZE d :: Int COM 5;
+
+imprima_de_um_em_um_voltando(b, d);

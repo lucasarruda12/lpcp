@@ -19,6 +19,8 @@ tokens :-
   "&" {\p _ -> Token p EComercial}
   "[" {\p _ -> Token p ColEsq}
   "]" {\p _ -> Token p ColDir}
+  "{" {\p _ -> Token p ChaveEsq}
+  "}" {\p _ -> Token p ChaveDir}
   ";" {\p _ -> Token p PontoVirgula}
   "->" {\p _ -> Token p Seta}
   "<=" {\p _ -> Token p MenorIgual}
@@ -120,6 +122,8 @@ data TokenKind
   | ParDir 
   | ColEsq 
   | ColDir 
+  | ChaveEsq
+  | ChaveDir
   | QuatroPontos 
   | DoisPontos 
   | EComercial 

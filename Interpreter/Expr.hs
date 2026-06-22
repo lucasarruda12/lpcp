@@ -25,6 +25,18 @@ instance Evaluavel Expr where
 
   eval (ELeia p) = VString <$> liftIO getLine
 
+  eval (EList _ elems) = do
+    vs <- mapM eval elems
+    return $ VList vs
+  eval (ETuple _ elems) = do
+    vs <- mapM eval elems
+    return $ VTuple vs
+  eval (EDict _ pairs) = do
+    ps <- mapM (\(k,v) -> do
+                  kk <- eval k
+                  vv <- eval v
+                  return (kk, vv)) pairs
+    return $ VDict ps
   eval (EOpBin p op e1 e2) = do
     v1 <- eval e1
     v2 <- eval e2

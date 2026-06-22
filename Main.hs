@@ -9,7 +9,7 @@ import Analyser
 
 main :: IO ()
 main = do
-  prog <- readFile "programa.pt"
+  prog <- readFile "programa2.pt"
   let tok = tokenize prog
   case (parse programaP "" tok) of
     Right ast -> case analiseEstatica ast of
