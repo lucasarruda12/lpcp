@@ -51,7 +51,7 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
     testString (Token p (LitString s)) = Just (LString (Pos p p) s)
     testString _ = Nothing
 
-    litBoolP = tokenPrim show nextPos testReal
+    litBoolP = tokenPrim show nextPos testBool
     testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
     testBool _ = Nothing
 
@@ -68,12 +68,36 @@ litP = litIntP <|> litStringP <|> litBoolP <|> litFloatP <|> litRealP <|> litNad
       return (LNada (Pos p p))
  
 tipoP :: Parser Tipo
-tipoP = TId <$> idP 
-  <|> (do
-    tokenP ColEsq
-    t <- tipoP
-    tokenP ColDir
-    return $ TList t)
+tipoP =
+      try tipoListaP
+  <|> try tipoTuplaP
+  <|> try tipoDictP
+  <|> (TId <$> idP)
+  where
+    tipoListaP :: Parser Tipo
+    tipoListaP = do
+      tokenP ColEsq
+      t <- tipoP
+      tokenP ColDir
+      return $ TList t
+
+    tipoTuplaP :: Parser Tipo
+    tipoTuplaP = do
+      tokenP ParEsq
+      ts <- sepBy1 tipoP (tokenP Virgula)
+      tokenP ParDir
+      case ts of
+        [t] -> unexpected "tupla precisa de pelo menos dois tipos"
+        _ -> return $ TTuple ts
+
+    tipoDictP :: Parser Tipo
+    tipoDictP = do
+      tokenP ChaveEsq
+      k <- tipoP
+      tokenP DoisPontos
+      v <- tipoP
+      tokenP ChaveDir
+      return $ TDict k v
 
 ---------------------------------------
 -- Tudo sobre Comandos ----------------
@@ -223,6 +247,36 @@ indiceP = do
   tokenP ColDir
   return (EIndice (mergePos v idx) (EVar v) idx)
 
+litListaP :: Parser Expr
+litListaP = do
+  start <- tokenP ColEsq
+  elems <- sepBy exprP (tokenP Virgula)
+  end <- tokenP ColDir
+  return (EList (Pos start end) elems)
+
+litTuplaP :: Parser Expr
+litTuplaP = do
+  start <- tokenP ParEsq
+  elems <- sepBy exprP (tokenP Virgula)
+  end <- tokenP ParDir
+  case elems of
+    [e] -> unexpected "tupla precisa de pelo menos dois elementos"
+    _ -> return (ETuple (Pos start end) elems)
+
+litDictP :: Parser Expr
+litDictP = do
+  start <- tokenP ChaveEsq
+  pairs <- sepBy pairP (tokenP Virgula)
+  end <- tokenP ChaveDir
+  return (EDict (Pos start end) pairs)
+  where
+    pairP :: Parser (Expr, Expr)
+    pairP = do
+      key <- exprP
+      tokenP DoisPontos
+      value <- exprP
+      return (key, value)
+
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
 exprP :: Parser Expr
@@ -286,6 +340,9 @@ exprP = buildExpressionParser table term
     term =
         try chamadaP
         <|> try indiceP
+        <|> try litListaP
+        <|> try litTuplaP
+        <|> try litDictP
         <|> ELit <$> litP
         <|> EVar <$> idP
         <|> convP

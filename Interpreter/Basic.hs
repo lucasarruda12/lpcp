@@ -3,6 +3,7 @@ module Interpreter.Basic where
 import Control.Monad.State
 import Control.Monad.Except
 import qualified Data.Map as Map
+import Data.List (intercalate)
 import Interpreter.Erro
 
 import Repr
@@ -36,14 +37,21 @@ data Valor
   | VString String
   | VReal Double
   | VFloat Float
+  | VList [Valor]
+  | VTuple [Valor]
+  | VDict [(Valor, Valor)]
   | VNada
 
 instance Show Valor where
   show (VInt x) = show x
   show (VBool b) = show b
-  show (VString s) = s
+  show (VString s) = show s
   show (VReal s) = show s
   show (VFloat s) = show s
+  show (VList xs) = "[" ++ intercalate "," (map show xs) ++ "]"
+  show (VTuple xs) = "(" ++ intercalate "," (map show xs) ++ ")"
+  show (VDict pairs) = "{" ++ intercalate ", " (map showPair pairs) ++ "}"
+    where showPair (k,v) = show k ++ ": " ++ show v
   show VNada = "Nada"
 
 type Escopo = String
