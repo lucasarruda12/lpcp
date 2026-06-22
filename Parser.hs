@@ -189,6 +189,17 @@ parametroP = do
   t <- tipoP
   return(Parametro id t (isJust ref))
 
+
+listaP :: Parser Expr
+listaP = do
+  start <- tokenP ColEsq
+  elems <- sepBy exprP (tokenP Virgula)
+  end <- tokenP ColDir
+  return (ELista (Pos start end) elems)
+
+  -- esse tipo de lista permite diferentes tipos nela
+  -- acredito que da pra implementar matrizes com lista tambem
+
 chamadaP :: Parser Expr
 chamadaP = do
   f <- idP
@@ -242,13 +253,14 @@ exprP = buildExpressionParser table term
       pure $ \l r -> 
         EOpBin (mergePos l r) op l r
 
-    unOpP tk op = do
+    unOpP tk op = do  
       tokenP tk
       pure $ \e -> EOpUn (getPos e) op e
 
     term =
         try chamadaP
         <|> try indiceP
+        <|> try listaP
         <|> ELit <$> litP
         <|> EVar <$> idP
         <|> parens exprP

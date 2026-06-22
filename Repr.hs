@@ -98,6 +98,7 @@ instance Positional Lit where
 data Expr
   = ELit Lit
   | EVar Id
+  | ELista Pos [Expr] -- lista de expressoes?
   | EChamada Pos Id [Expr]
   | EIndice Pos Expr Expr
   | EOpBin Pos OpBin Expr Expr
@@ -107,6 +108,7 @@ data Expr
 instance Positional Expr where
   getPos (ELit l) = getPos l
   getPos (EVar (IdR p _)) = p
+  getPos (ELista p _) = p
   getPos (EChamada p _ _) = p
   getPos (EIndice p _ _) = p
   getPos (EOpBin p _ _ _) = p
