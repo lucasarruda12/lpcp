@@ -31,11 +31,15 @@ instance Positional Id where
 data Tipo
   = TId Id
   | TList Tipo
+  | TTuple [Tipo]
+  | TDict Tipo Tipo
   deriving (Show)
 
 instance Positional Tipo where
   getPos (TId id) = getPos id
   getPos (TList t) = getPos t
+  getPos (TTuple (t:_)) = getPos t
+  getPos (TDict k v) = getPos k
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
   deriving(Show)
@@ -115,6 +119,9 @@ data Expr
   | EIndice Pos Expr Expr
   | EOpBin Pos OpBin Expr Expr
   | EOpUn Pos OpUn Expr
+  | EList Pos [Expr]
+  | ETuple Pos [Expr]
+  | EDict Pos [(Expr, Expr)]
   deriving(Show)
 
 instance Positional Expr where
@@ -124,6 +131,9 @@ instance Positional Expr where
   getPos (EIndice p _ _) = p
   getPos (EOpBin p _ _ _) = p
   getPos (EOpUn p _ _) = p
+  getPos (EList p _) = p
+  getPos (ETuple p _) = p
+  getPos (EDict p _) = p
 -- ===================================
 
 -- type Argumento = (Id, Descritor)
