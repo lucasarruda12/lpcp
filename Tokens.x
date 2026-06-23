@@ -56,6 +56,8 @@ tokens :-
   COM {\p _ -> Token p Com}
   IMPRIMA {\p _ -> Token p Imprima}
   NADA {\p _ -> Token p Nada}
+  ENUM     {\p _ -> Token p EnumTok}
+  FIM_ENUM {\p _ -> Token p FimEnum}
 
   -- Tipos
   int {\p _ -> Token p TInt}
@@ -157,6 +159,8 @@ data TokenKind
   | TReal
   | TBool
   | TString
+  | EnumTok
+  | FimEnum
 
   deriving (Eq, Show)
 

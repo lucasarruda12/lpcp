@@ -199,16 +199,20 @@ comandoP =
 ---------------------------------------
 ---------------------------------------
 adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
-adicionarProcedimento p (Programa ps cs) = Programa (p : ps) cs
+adicionarProcedimento p (Programa ps es cs) = Programa (p : ps) es cs
 
 adicionarComando :: Comando -> Programa -> Programa
-adicionarComando c (Programa ps cs) = Programa ps (c : cs)
+adicionarComando c (Programa ps es cs) = Programa ps es (c : cs)
+
+adicionarEnum :: EnumDecl -> Programa -> Programa
+adicionarEnum e (Programa ps es cs) = Programa ps (e : es)cs
 
 programaP :: Parser Programa
 programaP
-  =   (adicionarProcedimento <$> procedimentoP <*> programaP)
-  <|> (adicionarComando <$> comandoP <*> programaP) 
-  <|> (pure (Programa [] []) <* eof)
+  =  try (adicionarEnum        <$> enumDeclP      <*> programaP)
+  <|> try (adicionarProcedimento <$> procedimentoP <*> programaP)
+  <|> try (adicionarComando <$> comandoP <*> programaP) 
+  <|> (pure (Programa [] [] []) <* eof)
   where
     procedimentoP :: Parser ProcedimentoR
     procedimentoP = do
@@ -276,6 +280,20 @@ litDictP = do
       tokenP DoisPontos
       value <- exprP
       return (key, value)
+
+enumDeclP :: Parser EnumDecl
+enumDeclP = do
+  start  <- tokenP EnumTok
+  nome   <- idP
+  vars   <- sepBy1 varianteP (tokenP Virgula)
+  end    <- tokenP FimEnum
+  return (EnumDecl (Pos start end) nome vars)
+  where
+    varianteP :: Parser VarianteEnum
+    varianteP = do
+      nome <- idP
+      tipo <- optionMaybe (try(parens tipoP))
+      return (VarianteEnum nome tipo)
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html

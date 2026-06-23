@@ -1,7 +1,9 @@
 INICIALIZE lista :: [Int] COM [3, 2, 1];
 INICIALIZE tupla :: (Int, Bool) COM (42, VERDADEIRO);
 INICIALIZE dicionario :: {String: Int} COM {"Bananas": 10, "Macas": 5, "Laranjas": 3};
-
+ENUM cores vermelho, verde(INT), azul FIM_ENUM
+INICIALIZE c :: cores COM verde(42);
+IMPRIMA c;
 IMPRIMA lista;
 IMPRIMA tupla;
 IMPRIMA dicionario;

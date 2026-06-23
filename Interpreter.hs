@@ -12,11 +12,25 @@ import Interpreter.Comando
 import Repr
 
 instance Evaluavel Programa where
-  eval (Programa ps cs) = do
+  eval (Programa ps es cs) = do
     modify $ \amb ->
       amb { ps = ps, escopo = "main" } 
+    mapM_ evalEnum es
     mapM_ eval cs
     return VNada
+
+evalEnum :: EnumDecl -> EvalM ()
+evalEnum (EnumDecl _ nome variantes) =
+  mapM_ (registrarVariante) variantes
+  where
+    registrarVariante (VarianteEnum id Nothing) =
+      addVar id (VEnum (getId id) [])
+    registrarVariante (VarianteEnum id (Just _)) = do
+      addVar id (VConstrutor (getId id))
+      return ()
+
+getId :: Id -> String
+getId (IdR _ s) = s
 
 run :: EvalM (Valor) -> IO ()
 run m = do

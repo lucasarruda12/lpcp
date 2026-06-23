@@ -21,6 +21,12 @@ instance Evaluavel Lit where
 instance Evaluavel Expr where
   eval (ELit l) = eval l
   eval (EVar id) = getVar id
+  eval (EChamada p f args) = do
+    func <- getVar f
+    vs <- mapM eval args
+    case func of
+      VConstrutor nome -> return $ VEnum nome vs
+      _ -> throwError $ TypeError p
   eval (EList _ elems) = do
     vs <- mapM eval elems
     return $ VList vs
@@ -91,6 +97,8 @@ evalOpBin op (VBool b1) (VBool b2) = Just $ case op of
   OrOp -> VBool (b1 || b2)
 
 evalOpBin _ _ _ = Nothing
+
+
 
 evalOpUn :: OpUn -> Valor -> Maybe Valor
 evalOpUn Neg (VInt x) = Just $ VInt (-x)

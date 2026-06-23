@@ -40,6 +40,8 @@ data Valor
   | VList [Valor]
   | VTuple [Valor]
   | VDict [(Valor, Valor)]
+  | VEnum String [Valor]
+  | VConstrutor String -- variante do enum com tipo
   | VNada
 
 instance Show Valor where
@@ -52,6 +54,9 @@ instance Show Valor where
   show (VTuple xs) = "(" ++ intercalate "," (map show xs) ++ ")"
   show (VDict pairs) = "{" ++ intercalate ", " (map showPair pairs) ++ "}"
     where showPair (k,v) = show k ++ ": " ++ show v
+  show (VEnum nome []) = nome
+  show (VEnum nome vs) = nome ++ "(" ++ intercalate "," (map show vs) ++ ")"
+  show (VConstrutor nome) = "<construtor " ++ nome ++ ">"
   show VNada = "Nada"
 
 type Escopo = String

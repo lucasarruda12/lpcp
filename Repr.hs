@@ -51,6 +51,7 @@ data Programa = Programa
   -- Funções
   -- Tipos definidos
   -- Mais (?)
+  , enums :: [EnumDecl]
   , comandos :: [Comando]
   }
   deriving (Show)
@@ -105,6 +106,12 @@ data Lit
   | LFloat Pos Float
   | LReal Pos Double
   | LNada Pos
+  deriving (Show)
+
+data VarianteEnum = VarianteEnum Id (Maybe Tipo)
+  deriving (Show)
+
+data EnumDecl = EnumDecl Pos Id [VarianteEnum]
   deriving (Show)
 
 instance Positional Lit where
