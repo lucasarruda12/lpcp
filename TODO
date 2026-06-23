@@ -4,15 +4,12 @@
 
 - Coloquei array num canto aí no Repr.hs, depois tem que ver se o nome é array mesmo
 
-- Tipos estruturados: Listas, Matrizes, Enums, Registro... etc
+- Tipos estruturados: 
+  - Matrizes <- Pedro
+  - Enums (inclui resolver os conflitos de merge) <- Isreal
+  - Registro <- Pedro
 
-- Ler...
-
-- Lógica do se/enquanto tem que mudar
-
-- TUDO RELACIONADO A CHECAGEM DE TIPOS!!!!!!
-
-- Funções ainda nem existem
+- Funções ainda nem existem <- Geraldo
 
 - Do jeito que os blocos estão implementados aqui acontece o seguinte:
   - Se eu tenho um SE dentro de uma função recursiva, cada ativação desse SE vai ter um escopo diferente. Não acho que tem problema, só é estranho... :/
