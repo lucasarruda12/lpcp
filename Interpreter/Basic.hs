@@ -74,20 +74,33 @@ addVar nome v = do
   modify $ \am 
     -> am { memoria = Map.insertWith (++) (scp, nome) [v] (memoria am) }
 
-getVar :: Id -> EvalM Valor
-getVar nome = do
+getRaw :: Id -> EvalM Valor
+getRaw nome = do
   scp <- gets escopo
   mem <- gets memoria
   ces <- gets cadeia_estatica
-  getVar' (scp:ces) mem
+  getRaw' (scp:ces) mem
   where
-    getVar' []     _ = throwError $ UndefinedVariable (getPos nome)
-    getVar' (e:es) mem = case Map.lookup (e, nome) mem of
+    getRaw' []     _ = throwError $ UndefinedVariable (getPos nome)
+    getRaw' (e:es) mem = case Map.lookup (e, nome) mem of
+      Just (v:_) -> return v
+      _ -> getRaw' es mem
+  
+
+getValue :: Id -> EvalM Valor
+getValue nome = do
+  scp <- gets escopo
+  mem <- gets memoria
+  ces <- gets cadeia_estatica
+  getValue' (scp:ces) mem
+  where
+    getValue' []     _ = throwError $ UndefinedVariable (getPos nome)
+    getValue' (e:es) mem = case Map.lookup (e, nome) mem of
       Just ((VRef endereco):_) -> case Map.lookup endereco mem of
         Just (v:_) -> return v
         Nothing -> throwError FaltaImplementar
       Just (v:_) -> return v
-      _ -> getVar' es mem
+      _ -> getValue' es mem
 
 modificarVar :: Id -> Valor -> EvalM ()
 modificarVar nome valor = do

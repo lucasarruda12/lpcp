@@ -81,9 +81,15 @@ instance Evaluavel (ProcedimentoR, [Expr]) where
       add :: [Parametro] -> [Expr] -> EvalM ()
       add ((Parametro n _ porref) : ps) (e : es) 
         | porref = case e of
-          EVar id -> do
-            scp <- resolveVar id
-            addVar n (VRef (scp, id))
+          EVar indent -> do
+            v <- getRaw indent
+            case v of
+              (VRef endereco) -> do
+                addVar n (VRef endereco)
+                add ps es
+              _ -> do
+                scp <- resolveVar indent
+                addVar n (VRef (scp, indent))
           _ -> throwError FaltaImplementar
         | otherwise = (eval e >>= addVar n) *> add ps es
 
