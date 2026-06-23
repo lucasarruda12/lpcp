@@ -42,6 +42,7 @@ data Valor
   | VTuple [Valor]
   | VDict [(Valor, Valor)]
   | VNada
+  | VRef (String, Id)
 
 instance Show Valor where
   show (VInt x) = show x
@@ -54,6 +55,7 @@ instance Show Valor where
   show (VDict pairs) = "{" ++ intercalate ", " (map showPair pairs) ++ "}"
     where showPair (k,v) = show k ++ ": " ++ show v
   show VNada = "Nada"
+  show (VRef escopo) = show escopo
 
 type Escopo = String
 
@@ -81,6 +83,9 @@ getVar nome = do
   where
     getVar' []     _ = throwError $ UndefinedVariable (getPos nome)
     getVar' (e:es) mem = case Map.lookup (e, nome) mem of
+      Just ((VRef endereco):_) -> case Map.lookup endereco mem of
+        Just (v:_) -> return v
+        Nothing -> throwError FaltaImplementar
       Just (v:_) -> return v
       _ -> getVar' es mem
 
@@ -90,8 +95,12 @@ modificarVar nome valor = do
   e <- resolveVar nome
   
   case Map.lookup (e, nome) mem of
-    Just (_ : vs) -> 
-      modify $ \am -> am {memoria = Map.insert (e, nome) (valor:vs) mem}
+    Just (v : vs) -> case v of
+      VRef endereco -> 
+        modify $ \am 
+          -> am { memoria = Map.adjust (\(_:vs) -> valor:vs) endereco (memoria am) }
+      _ ->
+        modify $ \am -> am {memoria = Map.insert (e, nome) (valor:vs) mem}
     _ -> throwError (UndefinedVariable $ getPos nome)
 
 resolveVar :: Id -> EvalM Escopo

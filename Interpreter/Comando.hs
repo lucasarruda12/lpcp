@@ -2,6 +2,7 @@ module Interpreter.Comando where
 
 import Control.Monad.State
 import Control.Monad.Except
+import Data.Functor
 
 import Interpreter.Basic
 import Interpreter.Erro
@@ -13,26 +14,23 @@ instance Evaluavel Comando where
   eval (Atribuicao p lv e) = do
     rv <- eval e
     case lv of
-      AId nome -> modificarVar nome rv *> return VNada
+      AId nome -> modificarVar nome rv $> VNada
       -- TODO: Atribuição de lista e de Referência!
-      _ -> throwError (FaltaImplementar)
+      _ -> throwError FaltaImplementar
 
   eval (ImprimaCmd _ e) = do
     v <- eval e
     liftIO $ print v
     return v
 
-  -- TODO: Não checa tipos
   eval (Inicializacao p i t e) = comPosicao p $ do
     v <- eval e
-    -- TODO: Checagem de tipos?
     addVar i v
     return VNada
 
   eval (ChamadaCmd p nome args) = comPosicao p $ do
-    vs <- mapM eval args
     proc <- getProc nome
-    eval (proc, vs)
+    eval (proc, args)
 
   eval (EnquantoCmd p secs) = do
     scp <- novoBloco "ENQUANTO"
@@ -71,16 +69,23 @@ instance Evaluavel Comando where
 
     go secs 
 
-instance Evaluavel (ProcedimentoR, [Valor]) where
-  eval (p, vs) = comEscopo (const ["main"]) nome $ do
-    add pars vs -- Inicializa os parâmetros na memória
-    mapM eval cs -- Avalia os comandos
+instance Evaluavel (ProcedimentoR, [Expr]) where
+  eval (p, es) = comEscopo (const ["main"]) nome $ do
+    add pars es -- Inicializa os parâmetros na memória
+    mapM_ eval cs -- Avalia os comandos
     return VNada
     where
       (ProcedimentoR pos i pars cs) = p
       (IdR _ nome) = i
 
-      add :: [Parametro] -> [Valor] -> EvalM ()
-      add ((Parametro n _ _) : ps) (v : vs) = addVar n v *> add ps vs
+      add :: [Parametro] -> [Expr] -> EvalM ()
+      add ((Parametro n _ porref) : ps) (e : es) 
+        | porref = case e of
+          EVar id -> do
+            scp <- resolveVar id
+            addVar n (VRef (scp, id))
+          _ -> throwError FaltaImplementar
+        | otherwise = (eval e >>= addVar n) *> add ps es
+
       add [] [] = pure ()
       add _ _ = throwError IncorrectNumberOfParameters
