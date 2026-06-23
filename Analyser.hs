@@ -81,6 +81,27 @@ chequeComando (Inicializacao p (IdR _ nome) ltipo e) = do
   else declVar nome p ltipo
 chequeComando (Declaracao p (IdR _ nome) tipo) =
   comContexto (show p) (declVar nome p tipo)
+chequeComando (Atribuicao p (AId (IdR _ lnome)) rvalue) =
+  comContexto (show p) (chequeAtribuicao lnome rvalue)
+chequeComando (EnquantoCmd p uncs) =
+  comContexto (show p) (mapM_ chequeUnc uncs)
+chequeComando (SeCmd p uncs) =
+  comContexto (show p) (mapM_ chequeUnc uncs)
+
+chequeAtribuicao :: String -> Expr -> CheqM ()
+chequeAtribuicao lnome rvalue = do
+  ltipo <- getVar lnome
+  rtipo <- chequeExpr rvalue
+  unless (ltipo == rtipo)
+    (throwError $ ErroDeTipo ltipo rtipo)
+
+chequeUnc :: (Expr, [Comando]) -> CheqM ()
+chequeUnc (e, cmds) = do
+  t1 <- chequeExpr e
+  unless (t1 == TBool) 
+    (comContexto (show . getPos $ e) (throwError $ ErroDeTipo TBool t1))
+  mapM_ chequeComando cmds
+
 
 
 chequeExpr :: Expr -> CheqM Tipo
