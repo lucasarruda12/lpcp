@@ -1,0 +1,25 @@
+PROCEDIMENTO mdc(n :: Int, m :: Int, &r :: Int):
+  SE:
+    n % m == 0, FAÇA:
+      r = m;
+    FIM_FAÇA.
+
+    m % n == 0, FAÇA:
+      r = n;
+    FIM_FAÇA.
+
+    n > m, FAÇA:
+      mdc(n-m, m, r);
+    FIM_FAÇA.
+
+    n < m, FAÇA:
+      mdc(n, m - n, r);
+    FIM_FAÇA.
+  FIM_SE.
+FIM_PROCEDIMENTO.
+
+INICIALIZE x :: Int COM 0;
+
+mdc(6, 15, x);
+
+IMPRIMA x;

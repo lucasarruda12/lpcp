@@ -21,7 +21,7 @@ instance Evaluavel Lit where
 
 instance Evaluavel Expr where
   eval (ELit l) = eval l
-  eval (EVar id) = getVar id
+  eval (EVar id) = getValue id
 
   eval (ELeia p) = VString <$> liftIO getLine
 

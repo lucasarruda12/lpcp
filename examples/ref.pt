@@ -1,0 +1,11 @@
+INICIALIZE a :: Int COM 2;
+
+PROCEDIMENTO teste(&x :: Int):
+  x = 3;
+
+  IMPRIMA x + 3;
+FIM_PROCEDIMENTO.
+
+teste(a);
+
+IMPRIMA a;

@@ -42,6 +42,7 @@ data Valor
   | VTuple [Valor]
   | VDict [(Valor, Valor)]
   | VNada
+  | VRef (String, Id)
 
 instance Show Valor where
   show (VInt x) = show x
@@ -54,6 +55,7 @@ instance Show Valor where
   show (VDict pairs) = "{" ++ intercalate ", " (map showPair pairs) ++ "}"
     where showPair (k,v) = show k ++ ": " ++ show v
   show VNada = "Nada"
+  show (VRef escopo) = show escopo
 
 type Escopo = String
 
@@ -72,17 +74,33 @@ addVar nome v = do
   modify $ \am 
     -> am { memoria = Map.insertWith (++) (scp, nome) [v] (memoria am) }
 
-getVar :: Id -> EvalM Valor
-getVar nome = do
+getRaw :: Id -> EvalM Valor
+getRaw nome = do
   scp <- gets escopo
   mem <- gets memoria
   ces <- gets cadeia_estatica
-  getVar' (scp:ces) mem
+  getRaw' (scp:ces) mem
   where
-    getVar' []     _ = throwError $ UndefinedVariable (getPos nome)
-    getVar' (e:es) mem = case Map.lookup (e, nome) mem of
+    getRaw' []     _ = throwError $ UndefinedVariable (getPos nome)
+    getRaw' (e:es) mem = case Map.lookup (e, nome) mem of
       Just (v:_) -> return v
-      _ -> getVar' es mem
+      _ -> getRaw' es mem
+  
+
+getValue :: Id -> EvalM Valor
+getValue nome = do
+  scp <- gets escopo
+  mem <- gets memoria
+  ces <- gets cadeia_estatica
+  getValue' (scp:ces) mem
+  where
+    getValue' []     _ = throwError $ UndefinedVariable (getPos nome)
+    getValue' (e:es) mem = case Map.lookup (e, nome) mem of
+      Just ((VRef endereco):_) -> case Map.lookup endereco mem of
+        Just (v:_) -> return v
+        Nothing -> throwError FaltaImplementar
+      Just (v:_) -> return v
+      _ -> getValue' es mem
 
 modificarVar :: Id -> Valor -> EvalM ()
 modificarVar nome valor = do
@@ -90,8 +108,12 @@ modificarVar nome valor = do
   e <- resolveVar nome
   
   case Map.lookup (e, nome) mem of
-    Just (_ : vs) -> 
-      modify $ \am -> am {memoria = Map.insert (e, nome) (valor:vs) mem}
+    Just (v : vs) -> case v of
+      VRef endereco -> 
+        modify $ \am 
+          -> am { memoria = Map.adjust (\(_:vs) -> valor:vs) endereco (memoria am) }
+      _ ->
+        modify $ \am -> am {memoria = Map.insert (e, nome) (valor:vs) mem}
     _ -> throwError (UndefinedVariable $ getPos nome)
 
 resolveVar :: Id -> EvalM Escopo
