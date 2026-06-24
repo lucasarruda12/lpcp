@@ -7,7 +7,8 @@ import Repr
 import Interpreter
 import Analyser
 import Control.Monad
-import System.Environment(getArgs)
+import System.Environment (getArgs)
+import Data.Foldable
 
 rodar :: String -> Bool -> IO()
 rodar s safe = do
@@ -16,8 +17,8 @@ rodar s safe = do
   let ast = parse programaP "" tok
   case ast of
     Right programa -> do
-      when safe
-        (print $ analiseEstatica programa)
+      when safe 
+        (for_ (analiseEstatica programa) putStrLn)
       run (eval programa)
     Left err -> print err
 

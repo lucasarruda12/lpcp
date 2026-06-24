@@ -63,30 +63,49 @@ analiseEstatica p = case runState (runExceptT (cheque p)) tabelaVazia of
 
 type CheqM a = ExceptT ErroSemanticaEstatica (State TabelaDeSimbolos) a
 
+-- É importante que seja nessa ordem: posso declarar variáveis no escopo externo que devem ser acessíveis no escopo interno dos procedimentos.
+-- Checar o escopo externo inclui adicionar as variáveis deles na tabela de símbolos. Isso tem que acontecer antes de checar os procedimentos.
 cheque :: Programa -> CheqM ()
 cheque (Programa ps cmds) = do
-  mapM_ addProcedimento ps
-  mapM_ chequeComando cmds
+  mapM_ addProcedimento ps -- Adiciona todos os procedimentos na tabela de símbolos
+  -- Adiciona as funções?
+  mapM_ chequeComando cmds -- Checa o escopo externo
+  mapM_ chequeProcedimento ps -- Checa os procedimentos
+  -- Checa as funções?
 
 addProcedimento :: ProcedimentoR -> CheqM ()
 addProcedimento = undefined
 
+chequeProcedimento :: ProcedimentoR -> chequeM ()
+chequeProcedimento = undefined
+
+-- Usa esse aqui como exemplo:
 chequeComando :: Comando -> CheqM ()
-chequeComando (ImprimaCmd p e) = void $ comContexto (show p) (chequeExpr e)
-chequeComando (Inicializacao p (IdR _ nome) ltipo e) = do
-  rtipo <- chequeExpr e
-  if ltipo /= rtipo
-  then comContexto (show p) $
-    throwError (ErroDeTipoAttr (nome, ltipo) (show e, rtipo))
-  else declVar nome p ltipo
-chequeComando (Declaracao p (IdR _ nome) tipo) =
-  comContexto (show p) (declVar nome p tipo)
-chequeComando (Atribuicao p (AId (IdR _ lnome)) rvalue) =
-  comContexto (show p) (chequeAtribuicao lnome rvalue)
-chequeComando (EnquantoCmd p uncs) =
-  comContexto (show p) (mapM_ chequeUnc uncs)
-chequeComando (SeCmd p uncs) =
-  comContexto (show p) (mapM_ chequeUnc uncs)
+chequeComando cmd = 
+  comContexto cmd $ case cmd of -- <- comContexto
+    (ImprimaCmd p e) ->
+      void (chequeExpr e)
+
+    -- Usa esse aqui como exemplo:
+    (Inicializacao p (IdR _ nome) ltipo e) -> do 
+      rtipo <- chequeExpr e -- <- encntre o tipo de e
+      if ltipo /= rtipo -- <- o tipo de e é igual ao tipo da variável que eu to inicializando?
+      then throwError -- Se não for: erro de tipo.
+        (ErroDeTipoAttr (nome, ltipo) (show e, rtipo))
+      else declVar nome p ltipo -- Se for, adiciona a variável com esse nome e esse tipo lá na tabela de símbolos
+
+    (Declaracao p (IdR _ nome) tipo) ->
+      declVar nome p tipo
+
+    (Atribuicao p (AId (IdR _ lnome)) rvalue) ->
+      chequeAtribuicao lnome rvalue
+
+    -- Unidade de Comandos de Condicionais (UNC) :D
+    (EnquantoCmd p uncs) ->
+      mapM_ chequeUnc uncs
+
+    (SeCmd p uncs) ->
+      mapM_ chequeUnc uncs
 
 chequeAtribuicao :: String -> Expr -> CheqM ()
 chequeAtribuicao lnome rvalue = do
@@ -99,13 +118,14 @@ chequeUnc :: (Expr, [Comando]) -> CheqM ()
 chequeUnc (e, cmds) = do
   t1 <- chequeExpr e
   unless (t1 == TBool) 
-    (comContexto (show . getPos $ e) (throwError $ ErroDeTipo TBool t1))
+    (comContexto e (throwError $ ErroDeTipo TBool t1))
   mapM_ chequeComando cmds
 
-
-
+-- A parte de expressões tá complicada. Boa sorte!
 chequeExpr :: Expr -> CheqM Tipo
-chequeExpr e = comContexto (show (getPos e) +-+ "Na expressão" +-+ show e) (chequeExpr' e)
+chequeExpr e = comContexto'
+  (show (getPos e) +-+ "Na expressão" +-+ show e) 
+    (chequeExpr' e)
 
 chequeExpr' :: Expr -> CheqM Tipo
 chequeExpr' (ELit l) = case l of
@@ -125,7 +145,7 @@ chequeExpr' (ELeia _) = pure TString
 chequeExpr' (EVar (IdR p nome)) = getVar nome
 
 chequeUnOp :: String -> OpUn -> Tipo -> CheqM Tipo
-chequeUnOp s op t = comContexto s $ do
+chequeUnOp s op t = comContexto' s $ do
   case op of
     Neg -> 
       if t `Set.member` numericos 
@@ -141,7 +161,7 @@ chequeUnOp s op t = comContexto s $ do
       else throwError (ErroDeTipo t2 t)
 
 chequeOpBin :: String -> OpBin -> Tipo -> Tipo -> CheqM Tipo
-chequeOpBin c op t1 t2 = comContexto c $ do
+chequeOpBin c op t1 t2 = comContexto' c $ do
   let tipos_nums = all (`Set.member` numericos) [t1, t2]
   let tipos_iguais = t1 == t2
   let op_numerica = op `elem` [Soma, Mul, Div, Exp, Mod]
@@ -165,8 +185,17 @@ chequeOpBin c op t1 t2 = comContexto c $ do
         then pure TBool
         else throwError (ErroDeTipo TBool (if t1 /= TBool then t1 else t2))
 
-comContexto :: String -> CheqM a -> CheqM a
-comContexto s c = 
+
+-- comCOntexto: Em alguns momentos eu quero uma coisa simples. Em outros uma coisa mais complicada:
+
+-- Esse constroi a mensagem por você
+comContexto :: (Show a, Positional a) => a -> CheqM b -> CheqM b
+comContexto r = comContexto' 
+  (show (getPos r) +-+ show r)
+
+-- Esse pede a mensagem
+comContexto' :: String -> CheqM b -> CheqM b
+comContexto' s c =
   catchError c (throwError . Contexto s)
 
 declVar :: String -> Pos -> Tipo -> CheqM ()

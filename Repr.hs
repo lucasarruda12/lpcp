@@ -1,6 +1,7 @@
 module Repr where
 
 import Lexer
+import Data.List (intercalate)
 
 data Pos = Pos 
   { inicio :: AlexPosn
@@ -43,7 +44,7 @@ data Tipo
   | TList Tipo
   | TTuple [Tipo]
   | TDict Tipo Tipo
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
 
 instance Positional Tipo where
   getPos (TId id) = getPos id
@@ -52,7 +53,10 @@ instance Positional Tipo where
   getPos (TDict k v) = getPos k
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
-  deriving(Show)
+
+instance Show Parametro where
+  show (Parametro id tipo False) = show id ++ " :: " ++ show tipo
+  show (Parametro id tipo True) = "&" ++ show id ++ " :: " ++ show tipo
 --- criei isso aqui tambem mas tem que conferir se está correto
 
 data Programa = Programa
@@ -67,7 +71,10 @@ data Programa = Programa
 
 data ProcedimentoR
   = ProcedimentoR Pos Id [Parametro] [Comando]
-  deriving(Show)
+
+instance Show ProcedimentoR where
+  show (ProcedimentoR _ nome pars _) 
+    = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
 
 data Atribuendo
   = AId Id
@@ -89,10 +96,25 @@ data Comando
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
   | ChamadaCmd Pos Id [Expr]
-  deriving (Show)
 
 instance Positional Comando where
+  getPos (Atribuicao p _ _) = p
+  getPos (Inicializacao p _ _ _) = p
+  getPos (Declaracao p _ _) = p
+  getPos (SeCmd p _) = p
+  getPos (EnquantoCmd p _) = p
   getPos (ImprimaCmd p _) = p
+  getPos (ChamadaCmd p _ _) = p
+
+instance Show Comando where
+  show (Atribuicao _ lvalue rvalue) = show lvalue ++ " = " ++ show rvalue
+  show (Inicializacao _ nome tipo rvalue) 
+    = "INICIALIZE " ++ show nome ++ " :: " ++ show tipo ++ " COM " ++ show rvalue
+  show (Declaracao _ nome tipo) = "DECLARE" ++ show nome ++ " :: " ++ show tipo
+  show (SeCmd _ _) = "SE"
+  show (EnquantoCmd _ _) = "ENQUANTO"
+  show (ImprimaCmd _ nome) = "IMPRIMA " ++ show nome
+  show (ChamadaCmd _ nome pars) = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
 
 -- == Tudo relacionado a expressões ==
 data OpBin
@@ -175,7 +197,15 @@ instance Positional Expr where
   getPos (EDict p _) = p
 -- ===================================
 
--- type Argumento = (Id, Descritor)
--- data Funcao = MkFuncao Id [Argumento] [Comando] Descritor
--- data Procedimento = MkProcedimento Id [Argumento] [Comando]
--- type Programa = [Comando]
+---------------------------------------
+-- Shows: -----------------------------
+instance Show Tipo where
+  show (TId nome) = show nome
+  show TInt = "Int"
+  show TString = "String"
+  show TFloat = "Float"
+  show TBool = "Bool"
+  show TReal = "Real"
+  show (TList tipo) = "[" ++ show tipo ++ "]"
+  show (TTuple tipos) = "(" ++ intercalate ", " (show <$> tipos) ++ ")"
+  show (TDict t1 t2) = "{" ++ show t1 ++ "," ++ show t2 ++ "}"
