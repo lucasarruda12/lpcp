@@ -10,5 +10,7 @@ data Erro
   | UnexaustivePatterns Pos
   | Context Pos Erro
   | FaltaImplementar
+  | IndexOutOfBounds
+  | KeyNotFound
   deriving (Show)
 

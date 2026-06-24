@@ -25,6 +25,25 @@ instance Evaluavel Expr where
 
   eval (ELeia p) = VString <$> liftIO getLine
 
+  eval (EIndice p container idx) = do
+    containerVal <- eval container
+    idxVal <- eval idx
+    case (containerVal, idxVal) of
+      (VList xs, VInt i) 
+        | i >= 0 && i < length xs -> return (xs !! i)
+        | otherwise -> throwError IndexOutOfBounds
+      
+      (VTuple xs, VInt i)
+        | i >= 0 && i < length xs -> return (xs !! i)
+        | otherwise -> throwError IndexOutOfBounds
+            
+      (VDict pairs, VString key) ->
+        case lookup (VString key) pairs of
+          Just v -> return v
+          Nothing -> throwError KeyNotFound
+      
+      _ -> throwError $ TypeError p
+
   eval (EList _ elems) = do
     vs <- mapM eval elems
     return $ VList vs
@@ -49,6 +68,7 @@ instance Evaluavel Expr where
     case evalOpUn op v1 of
       Just v -> pure v
       Nothing -> throwError $ TypeError p
+
 
 evalOpBin :: OpBin -> Valor -> Valor -> Maybe Valor
 evalOpBin op (VInt x) (VInt y) = Just $ case op of

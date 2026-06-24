@@ -20,17 +20,17 @@ class Evaluavel a where
 data Ambiente = Am
   { memoria :: Map.Map (Escopo, Id) [Valor]
   , ps :: [ProcedimentoR]
+  , fs :: [FuncaoR]
   , escopo :: Escopo
   , cadeia_estatica :: [Escopo]
   , contagem_de_blocos :: Int
   --, tipos
-  --, fs
   --, contador_de_escopo
   }
   deriving(Show)
 
 ambienteVazio :: Ambiente
-ambienteVazio = Am Map.empty [] [] [] 0
+ambienteVazio = Am Map.empty [] [] [] [] 0
 
 data Valor 
   = VInt Int
@@ -43,6 +43,7 @@ data Valor
   | VDict [(Valor, Valor)]
   | VNada
   | VRef (String, Id)
+  deriving (Eq)
 
 instance Show Valor where
   show (VInt x) = show x
@@ -161,4 +162,18 @@ getProc nome = do
     lookup name (p@(ProcedimentoR _ name' _ _) : ps)
       | name == name' = Just p
       | otherwise = lookup name ps
-    loopup _ [] = Nothing
+    lookup _ [] = Nothing
+
+getFunc :: Id -> EvalM FuncaoR
+getFunc nome = do
+  fs <- gets fs
+  case lookup nome fs of
+    Just f -> return f
+    Nothing -> throwError $ UndefinedVariable (getPos nome)
+  where
+    lookup :: Id -> [FuncaoR] -> Maybe FuncaoR
+    lookup name (f@(FuncaoR _ name' _ _ _) : fs)
+      | name == name' = Just f
+      | otherwise = lookup name fs
+    lookup _ [] = Nothing
+  

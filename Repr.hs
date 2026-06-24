@@ -44,6 +44,7 @@ data Tipo
   | TList Tipo
   | TTuple [Tipo]
   | TDict Tipo Tipo
+  | TMatrix Tipo Int Int
   deriving (Eq, Ord)
 
 instance Positional Tipo where
@@ -51,6 +52,7 @@ instance Positional Tipo where
   getPos (TList t) = getPos t
   getPos (TTuple (t:_)) = getPos t
   getPos (TDict k v) = getPos k
+  getPos (TMatrix t _ _) = getPos t
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
 
@@ -66,6 +68,7 @@ data Programa = Programa
   -- Funções
   -- Tipos definidos
   -- Mais (?)
+  --, enums :: [EnumDecl]
   , comandos :: [Comando]
   }
   deriving (Show)
@@ -120,6 +123,7 @@ instance Show Comando where
   show (SeCmd _ _) = "SE"
   show (EnquantoCmd _ _) = "ENQUANTO"
   show (ImprimaCmd _ nome) = "IMPRIMA " ++ show nome
+  show (RetorneCmd _ nome) = "RETORNE " ++ show nome
   show (ChamadaCmd _ nome pars) = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
 
 -- == Tudo relacionado a expressões ==
@@ -194,7 +198,6 @@ instance Show Expr where
 instance Positional Expr where
   getPos (ELit l) = getPos l
   getPos (EVar (IdR p _)) = p
-  getPos (ELista p _) = p
   getPos (EChamada p _ _) = p
   getPos (EIndice p _ _) = p
   getPos (EOpBin p _ _ _) = p
@@ -216,3 +219,4 @@ instance Show Tipo where
   show (TList tipo) = "[" ++ show tipo ++ "]"
   show (TTuple tipos) = "(" ++ intercalate ", " (show <$> tipos) ++ ")"
   show (TDict t1 t2) = "{" ++ show t1 ++ "," ++ show t2 ++ "}"
+  show (TMatrix t r c) = show t ++ "[" ++ show r ++ "x" ++ show c ++ "]"

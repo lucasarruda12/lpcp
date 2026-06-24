@@ -1,0 +1,21 @@
+PROCEDIMENTO itera_lista(a :: [Int]):
+    INICIALIZE i :: Int COM 0;
+    ENQUANTO:
+        i < 3, FAÇA:
+            IMPRIMA a[i];
+            i = i + 1;
+        FIM_FAÇA.
+    FIM_ENQUANTO.
+FIM_PROCEDIMENTO.
+
+INICIALIZE x :: [Int] COM [1, 2, 3, 4, 5];
+
+itera_lista(x);
+
+INICIALIZE y :: (Bool, Int) COM (VERDADEIRO, 10);
+IMPRIMA y[0];
+IMPRIMA y[1];
+
+INICIALIZE z :: {String: Int} COM {"a": 1, "b": 2};
+IMPRIMA z["a"];
+IMPRIMA z["b"];

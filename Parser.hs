@@ -6,6 +6,7 @@ import Text.Parsec
 import Text.Parsec.Expr
 import Text.Parsec.Pos (newPos)
 import Data.Maybe (isJust)
+import Data.Char (isDigit)
 
 type Parser a = Parsec [Token] () a
 
@@ -66,22 +67,33 @@ litP
     litNadaP = do
       p <- tokenP Nada
       return (LNada (Pos p p))
+
+litIntTokenP :: Parser Int
+litIntTokenP = tokenPrim show updatePos testInt
+  where
+    testInt (Token _ (LitInt x)) = Just x
+    testInt _ = Nothing
  
 tipoP :: Parser Tipo
-tipoP 
-  = TId <$> idP <|> tipoBaseP <|> (do 
-    IdR _ tipo <- idP
-    case tipo of
-      "Int" -> return TInt
-      "Float" -> return TFloat
-      "Real" -> return TReal
-      "Bool" -> return TBool
-      "String" -> return TString)
-  <|> try tipoListaP
-  <|> try tipoTuplaP
-  <|> try tipoDictP
-  <|> (TId <$> idP)
+tipoP = do
+  tipoBase <- tipoBaseP
+  tipoMatrizP tipoBase
   where
+    tipoBaseP :: Parser Tipo
+    tipoBaseP
+      = (do 
+        IdR _ tipo <- idP
+        case tipo of
+          "Int" -> return TInt
+          "Float" -> return TFloat
+          "Real" -> return TReal
+          "Bool" -> return TBool
+          "String" -> return TString)
+      <|> try tipoListaP
+      <|> try tipoTuplaP
+      <|> try tipoDictP
+      <|> (TId <$> idP)
+
     tipoListaP :: Parser Tipo
     tipoListaP = do
       tokenP ColEsq
@@ -106,6 +118,15 @@ tipoP
       v <- tipoP
       tokenP ChaveDir
       return $ TDict k v
+
+    tipoMatrizP :: Tipo -> Parser Tipo
+    tipoMatrizP t = option t (try $ do
+      tokenP ColEsq
+      r <- litIntTokenP
+      tokenP Xis
+      c <- litIntTokenP
+      tokenP ColDir
+      tipoMatrizP (TMatrix t r c))
 
 ---------------------------------------
 -- Tudo sobre Comandos ----------------
@@ -201,29 +222,30 @@ comandoP =
         args <- parens $ sepBy exprP (tokenP Virgula)
         tokenP PontoVirgula
         return (ChamadaCmd (getPos p) p args)
+  
       retorneP :: Parser Comando
       retorneP = do
           start <- tokenP Retorne
           e <- exprP
-          tokenP PontoVirgula
-          return (RetorneCmd (mergePos start e) e)
+          end <- tokenP PontoVirgula
+          return (RetorneCmd (Pos start end) e)
 ---------------------------------------
 ---------------------------------------
 adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
-adicionarProcedimento p (Programa ps cs) = Programa (p : ps) cs
+adicionarProcedimento p (Programa ps fs cs) = Programa (p : ps) fs cs
 
 adicionarFuncao :: FuncaoR -> Programa -> Programa 
 adicionarFuncao f (Programa ps fs cs) = Programa ps (f : fs) cs
 
 adicionarComando :: Comando -> Programa -> Programa
-adicionarComando c (Programa ps cs) = Programa ps (c : cs)
+adicionarComando c (Programa ps fs cs) = Programa ps fs (c : cs)
 
 programaP :: Parser Programa
 programaP
   =   (adicionarProcedimento <$> procedimentoP <*> programaP)
   <|> (adicionarFuncao       <$> try funcaoP       <*> programaP)
   <|> (adicionarComando <$> comandoP <*> programaP) 
-  <|> (Programa [] [] <$ eof)
+  <|> (Programa [] [] [] <$ eof)
   where
     procedimentoP :: Parser ProcedimentoR
     procedimentoP = do
@@ -236,30 +258,34 @@ programaP
       cmds <- many comandoP
       end <- tokenP FimProcedimento <?> "FIM_PROCEDIMENTO."
       return (ProcedimentoR (Pos start end) id parametros cmds)
-    funcaoP :: Parser FuncaoR
-funcaoP = do
-    start <- tokenP Funcao
-    idFuncao <- idP
-    tokenP ParEsq
-    parametros <- sepBy parametroP (tokenP Virgula)
-    tokenP ParDir
-    tokenP Seta
-    tipoRetorno <- tipoP
-    cmds <- many comandoP
-    
-    if not (hasRetorne cmds)
-        then fail ("A funcao '" ++ show idFuncao ++ "' deve conter pelo menos um comando RETORNE.")
-        else return (FuncaoR (Pos start end) idFuncao parametros tipoRetorno cmds)
 
-    hasRetorne :: [Comando] -> Bool
-    hasRetorne = any isRetorne
-      where
-        isRetorne (RetorneCmd _ _) = True
-        isRetorne (SeCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
-        isRetorne (EnquantoCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
-        isRetorne _ = False
+    funcaoP :: Parser FuncaoR
+    funcaoP = do
+        start <- tokenP Funcao
+        idFuncao <- idP
+        tokenP ParEsq
+        parametros <- sepBy parametroP (tokenP Virgula)
+        tokenP ParDir
+        tokenP Seta
+        tipoRetorno <- tipoP
+        tokenP DoisPontos
+        cmds <- many comandoP
+        end <- tokenP FimFuncao <?> "FIM_FUNCAO."
+        
+        if not (hasRetorne cmds)
+            then fail ("A funcao '" ++ show idFuncao ++ "' deve conter pelo menos um comando RETORNE.")
+            else return (FuncaoR (Pos start end) idFuncao parametros tipoRetorno cmds)
+
+hasRetorne :: [Comando] -> Bool
+hasRetorne = any isRetorne
+  where
+    isRetorne (RetorneCmd _ _) = True
+    isRetorne (SeCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
+    isRetorne (EnquantoCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
+    isRetorne _ = False
 
 -- Isso aqui não vai funcionar
+parametroP :: Parser Parametro
 parametroP = do
   ref <- optionMaybe(tokenP EComercial)
   id <- idP
@@ -312,6 +338,14 @@ litDictP = do
       tokenP DoisPontos
       value <- exprP
       return (key, value)
+
+-- litMatrizP :: Parser Expr
+-- litMatrizP = do
+--   start <- tokenP ColEsq
+--   rows <- sepBy (sepBy exprP (tokenP Virgula)) (tokenP PontoVirgula)
+--   end <- tokenP ColDir
+--   return (EMatrix (Pos start end) rows)
+
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
@@ -378,6 +412,7 @@ exprP = buildExpressionParser table term <?> "Expression"
         <|> try litListaP
         <|> try litTuplaP
         <|> try litDictP
+        -- <|> try litMatrizP
         <|> try (ELit <$> litP)
         <|> EVar <$> idP
         <|> convP

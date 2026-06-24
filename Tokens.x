@@ -39,9 +39,13 @@ tokens :-
   "*" {\p _ -> Token p Vezes}
   "**" {\p _ -> Token p VezesVezes}
   "." {\p _ -> Token p Ponto}
+  "x" {\p _ -> Token p Xis}
 
   PROCEDIMENTO {\p _ -> Token p Procedimento}
   FIM_PROCEDIMENTO. {\p _ -> Token p FimProcedimento}
+  FUNCAO {\p _ -> Token p Funcao}
+  FIM_FUNCAO. {\p _ -> Token p FimFuncao}
+  RETORNE {\p _ -> Token p Retorne}
   ENQUANTO {\p _ -> Token p Enquanto}
   FIM_ENQUANTO. {\p _ -> Token p FimEnquanto}
   FAÇA {\p _ -> Token p Faca}
@@ -83,9 +87,6 @@ tokens :-
   OR   {\p _ -> Token p OuLogico}
   NOT  {\p _ -> Token p NaoLogico}
 
-  FUNCAO  {\p _ -> Token p Funcao}
-  RETORNE {\p _ -> Token p Retorne}
-
   $alpha [$alpha $digit \_ \']* {\p s -> Token p (Id s)}
 {
 -- Record Syntax: 
@@ -109,6 +110,9 @@ instance Eq Token where
 data TokenKind
   = Procedimento    
   | FimProcedimento    
+  | Funcao
+  | FimFuncao
+  | Retorne
   | Imprima
   | Enquanto    
   | FimEnquanto    
@@ -166,13 +170,15 @@ data TokenKind
   | Bool
   | String
   | Leia
-  | Funcao
-  | Retorne
+  | Xis
   deriving (Eq)
 
 instance Show TokenKind where
   show Procedimento = "PROCEDIMENTO"
   show FimProcedimento = "FIM_PROCEDIMENTO."
+  show Funcao = "FUNCAO"
+  show FimFuncao = "FIM_FUNCAO."
+  show Retorne = "RETORNE"
   show Imprima = "IMPRIMA"
   show Enquanto = "ENQUANTO"
   show FimEnquanto = "FIM_ENQUANTO."
@@ -228,8 +234,7 @@ instance Show TokenKind where
   show Bool= "bool"
   show String= "string"
   show Leia= "leia"
-  show Funcao = "FUNCAO"
-  show Retorne = "RETORNE"
+  show Xis= "x"
    
 tokenize :: String -> [Token]
 tokenize = alexScanTokens

@@ -9,14 +9,40 @@ import Interpreter.Erro
 import Interpreter.Expr
 
 import Repr
+import Parser (chamadaP)
 
 instance Evaluavel Comando where
   eval (Atribuicao p lv e) = do
     rv <- eval e
     case lv of
       AId nome -> modificarVar nome rv $> VNada
-      -- TODO: Atribuição de lista e de Referência!
-      _ -> throwError FaltaImplementar
+      AArray arrayNome idxExpr -> do
+        -- Buscar a lista/tupla/dicionário
+        arrayVal <- getValue arrayNome
+        idxVal <- eval idxExpr
+        
+        -- Criar nova estrutura com o valor modificado
+        newArrayVal <- case (arrayVal, idxVal) of
+          (VList xs, VInt i)
+            | i >= 0 && i < length xs -> 
+                return $ VList (take i xs ++ [rv] ++ drop (i+1) xs)
+            | otherwise -> throwError IndexOutOfBounds
+          
+          (VTuple xs, VInt i)
+            | i >= 0 && i < length xs ->
+                return $ VTuple (take i xs ++ [rv] ++ drop (i+1) xs)
+            | otherwise -> throwError IndexOutOfBounds
+          
+          (VDict pairs, VString key) ->
+            let newPairs = map (\(k,v) -> if k == VString key then (k, rv) else (k,v)) pairs
+            in return $ VDict newPairs
+          
+          _ -> throwError $ TypeError p
+        
+        -- Atualizar a variável original
+        modificarVar arrayNome newArrayVal $> VNada
+      
+      ARef _ -> throwError FaltaImplementar
 
   eval (ImprimaCmd _ e) = do
     v <- eval e
