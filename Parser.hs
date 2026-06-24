@@ -76,6 +76,7 @@ comandoP =
   try (incrementoP)
   <|> try (atribuicaoP)
   <|> imprimaP
+  <|> retorneP
   <|> inicializacaoP
   <|> declaracaoP
   <|> seP
@@ -152,6 +153,13 @@ comandoP =
         tokenP FimFaca
         end <- tokenP FimEnquanto
         return (EnquantoCmd (Pos start end) cond cmdsThen)
+      
+      retorneP :: Parser Comando
+      retorneP = do
+        start <- tokenP Retorne
+        e <- exprP
+        tokenP PontoVirgula
+        return (RetorneCmd (mergePos start e) e)
 ---------------------------------------
 ---------------------------------------
 
@@ -159,7 +167,8 @@ comandoP =
 -- Porque não chamar de programaP?
 topLevelP :: Parser TopLevel
 topLevelP = 
-    (TLProcedimento <$> procedimentoP)
+    (TLFuncao <$> try funcaoP)
+   <|> (TLProcedimento <$> procedimentoP)
    <|> (TLComando <$> comandoP)
 
 programaP :: Parser Programa
@@ -215,6 +224,32 @@ indiceP = do
   idx <- exprP
   tokenP ColDir
   return (EIndice (mergePos v idx) (EVar v) idx)
+
+funcaoP :: Parser FuncaoR
+funcaoP = do
+    start <- tokenP Funcao
+    idFuncao <- idP
+    tokenP ParEsq
+    parametros <- sepBy parametroP (tokenP Virgula)
+    tokenP ParDir
+    tokenP Seta
+    tipoRetorno <- tipoP
+    cmds <- many comandoP
+
+    -- Validação pra ver se existe pelo menos 1 retorno
+    if not (hasRetorne cmds)
+        then fail ("A funcao '" ++ show idFuncao ++ "' deve conter pelo menos um comando RETORNE.")
+        else return (FuncaoR (Pos start end) idFuncao parametros tipoRetorno cmds)
+
+-- Função auxiliar
+hasRetorne :: [Comando] -> Bool
+hasRetorne = any isRetorne
+  where
+    -- Verificação se o retorne está em algum bloco de controle de fluxo
+    isRetorne (RetorneCmd _ _) = True
+    isRetorne (SeCmd _ _ blocoSe blocoSenao) = hasRetorne blocoSe || hasRetorne blocoSenao
+    isRetorne (EnquantoCmd _ _ blocoEnquanto) = hasRetorne blocoEnquanto
+    isRetorne _ = False
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html

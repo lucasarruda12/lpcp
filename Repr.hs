@@ -41,6 +41,7 @@ data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (po
 data TopLevel
   = TLProcedimento ProcedimentoR
   | TLComando Comando
+  | TLFuncao FuncaoR
   deriving (Show)
 
 data Programa = Programa [TopLevel]
@@ -49,6 +50,10 @@ data Programa = Programa [TopLevel]
 data ProcedimentoR
   = ProcedimentoR Pos Id [Parametro] [Comando]
   deriving(Show)
+
+data FuncaoR 
+  = FuncaoR Pos Id [Parametro] Tipo [Comando]
+  deriving (Show)
 
 data Atribuendo
   = AId Id
@@ -69,6 +74,7 @@ data Comando
   | EnquantoCmd Pos Expr [Comando] -- mesma coisa aqui
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
+  | RetorneCmd Pos Expr
   deriving (Show)
 
 -- == Tudo relacionado a expressões ==

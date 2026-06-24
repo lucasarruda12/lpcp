@@ -65,6 +65,9 @@ tokens :-
   OR   {\p _ -> Token p OuLogico}
   NOT  {\p _ -> Token p NaoLogico}
 
+  FUNCAO  {\p _ -> Token p Funcao}
+  RETORNE {\p _ -> Token p Retorne}
+
   $alpha [$alpha $digit \_ \']* {\p s -> Token p (Id s)}
 {
 -- Record Syntax: 
@@ -132,7 +135,8 @@ data TokenKind
   | AspasDuplas 
   | Pipe
   | Declare
-
+  | Funcao
+  | Retorne
   deriving (Eq, Show)
 
 tokenize :: String -> [Token]
