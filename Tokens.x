@@ -83,6 +83,9 @@ tokens :-
   OR   {\p _ -> Token p OuLogico}
   NOT  {\p _ -> Token p NaoLogico}
 
+  FUNCAO  {\p _ -> Token p Funcao}
+  RETORNE {\p _ -> Token p Retorne}
+
   $alpha [$alpha $digit \_ \']* {\p s -> Token p (Id s)}
 {
 -- Record Syntax: 
@@ -163,6 +166,8 @@ data TokenKind
   | Bool
   | String
   | Leia
+  | Funcao
+  | Retorne
   deriving (Eq)
 
 instance Show TokenKind where
@@ -223,6 +228,8 @@ instance Show TokenKind where
   show Bool= "bool"
   show String= "string"
   show Leia= "leia"
+  show Funcao = "FUNCAO"
+  show Retorne = "RETORNE"
    
 tokenize :: String -> [Token]
 tokenize = alexScanTokens

@@ -69,7 +69,7 @@ litP
  
 tipoP :: Parser Tipo
 tipoP 
-  = (do 
+  = TId <$> idP <|> tipoBaseP <|> (do 
     IdR _ tipo <- idP
     case tipo of
       "Int" -> return TInt
@@ -114,6 +114,7 @@ comandoP =
   try incrementoP
   <|> try atribuicaoP
   <|> imprimaP
+  <|> retorneP
   <|> inicializacaoP
   <|> declaracaoP
   <|> seP
@@ -200,10 +201,19 @@ comandoP =
         args <- parens $ sepBy exprP (tokenP Virgula)
         tokenP PontoVirgula
         return (ChamadaCmd (getPos p) p args)
+      retorneP :: Parser Comando
+      retorneP = do
+          start <- tokenP Retorne
+          e <- exprP
+          tokenP PontoVirgula
+          return (RetorneCmd (mergePos start e) e)
 ---------------------------------------
 ---------------------------------------
 adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
 adicionarProcedimento p (Programa ps cs) = Programa (p : ps) cs
+
+adicionarFuncao :: FuncaoR -> Programa -> Programa 
+adicionarFuncao f (Programa ps fs cs) = Programa ps (f : fs) cs
 
 adicionarComando :: Comando -> Programa -> Programa
 adicionarComando c (Programa ps cs) = Programa ps (c : cs)
@@ -211,6 +221,7 @@ adicionarComando c (Programa ps cs) = Programa ps (c : cs)
 programaP :: Parser Programa
 programaP
   =   (adicionarProcedimento <$> procedimentoP <*> programaP)
+  <|> (adicionarFuncao       <$> try funcaoP       <*> programaP)
   <|> (adicionarComando <$> comandoP <*> programaP) 
   <|> (Programa [] [] <$ eof)
   where
@@ -225,6 +236,28 @@ programaP
       cmds <- many comandoP
       end <- tokenP FimProcedimento <?> "FIM_PROCEDIMENTO."
       return (ProcedimentoR (Pos start end) id parametros cmds)
+    funcaoP :: Parser FuncaoR
+funcaoP = do
+    start <- tokenP Funcao
+    idFuncao <- idP
+    tokenP ParEsq
+    parametros <- sepBy parametroP (tokenP Virgula)
+    tokenP ParDir
+    tokenP Seta
+    tipoRetorno <- tipoP
+    cmds <- many comandoP
+    
+    if not (hasRetorne cmds)
+        then fail ("A funcao '" ++ show idFuncao ++ "' deve conter pelo menos um comando RETORNE.")
+        else return (FuncaoR (Pos start end) idFuncao parametros tipoRetorno cmds)
+
+    hasRetorne :: [Comando] -> Bool
+    hasRetorne = any isRetorne
+      where
+        isRetorne (RetorneCmd _ _) = True
+        isRetorne (SeCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
+        isRetorne (EnquantoCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
+        isRetorne _ = False
 
 -- Isso aqui não vai funcionar
 parametroP = do
@@ -317,7 +350,7 @@ exprP = buildExpressionParser table term <?> "Expression"
       pure $ \l r -> 
         EOpBin (mergePos l r) op l r
 
-    unOpP tk op = do
+    unOpP tk op = do  
       tokenP tk
       pure $ \e -> EOpUn (getPos e) op e
 

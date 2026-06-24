@@ -61,6 +61,7 @@ instance Show Parametro where
 
 data Programa = Programa
   { procedimentos :: [ProcedimentoR]
+  , funcoes       :: [FuncaoR]
   -- Falta aqui:
   -- Funções
   -- Tipos definidos
@@ -75,6 +76,10 @@ data ProcedimentoR
 instance Show ProcedimentoR where
   show (ProcedimentoR _ nome pars _) 
     = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
+
+data FuncaoR 
+  = FuncaoR Pos Id [Parametro] Tipo [Comando]
+  deriving (Show)
 
 data Atribuendo
   = AId Id
@@ -95,6 +100,7 @@ data Comando
   | EnquantoCmd Pos [(Expr, [Comando])]
   | Incremento Pos Id
   | ImprimaCmd Pos Expr
+  | RetorneCmd Pos Expr
   | ChamadaCmd Pos Id [Expr]
 
 instance Positional Comando where
@@ -188,6 +194,7 @@ instance Show Expr where
 instance Positional Expr where
   getPos (ELit l) = getPos l
   getPos (EVar (IdR p _)) = p
+  getPos (ELista p _) = p
   getPos (EChamada p _ _) = p
   getPos (EIndice p _ _) = p
   getPos (EOpBin p _ _ _) = p
