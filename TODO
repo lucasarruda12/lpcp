@@ -13,3 +13,10 @@
 
 - Do jeito que os blocos estão implementados aqui acontece o seguinte:
   - Se eu tenho um SE dentro de uma função recursiva, cada ativação desse SE vai ter um escopo diferente. Não acho que tem problema, só é estranho... :/
+
+evalComRetorno :: [Comando] -> EvalM ()
+evalComRetorno (Retorno:cmds) = pure ()
+evalComRetorno se@(SeCmd _ _):cmds = evalComRertorno se *> evalComRetorno cmds
+evalComRetorno enquanto@(Enquanto _ _):cmds = evalComRertorno enquanto *> evalComRetorno cmds
+evalComRetorno cmd:cmds = eval cmd *> evalComRetorno cmds
+evalComRetorno [] = pure ()
