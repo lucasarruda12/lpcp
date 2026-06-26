@@ -141,6 +141,8 @@ instance Evaluavel [Comando] where
 
     _ -> eval cmd *> eval cmds
 
+  eval [] = pure VNada
+
 instance Evaluavel (Pos, Id, [Parametro], [Comando], [Expr])
   where
   eval (p, i, pars, cs, es) 
