@@ -123,7 +123,7 @@ tipoP = do
     tipoMatrizP t = option t (try $ do
       tokenP ColEsq
       r <- litIntTokenP
-      tokenP Xis
+      tokenP Virgula
       c <- litIntTokenP
       tokenP ColDir
       tipoMatrizP (TMatrix t r c))
@@ -141,6 +141,7 @@ comandoP =
   <|> seP
   <|> enquantoP
   <|> chamadaCmdP
+  <|> try casamentoP
     where
       incrementoP :: Parser Comando
       incrementoP = do
@@ -229,23 +230,44 @@ comandoP =
           e <- exprP
           end <- tokenP PontoVirgula
           return (RetorneCmd (Pos start end) e)
+
+      casamentoP :: Parser Comando
+      casamentoP = do
+        start <- tokenP CasamentoTok
+        noivo <- exprP
+        tokenP DoisPontos
+        bracos <- many bracoP
+        end <- tokenP FimCasamento
+        return (CasamentoCmd (Pos start end) noivo bracos)
+
+      bracoP :: Parser (Padrao, [Comando])
+      bracoP = do
+        variante <- idP
+        captura <- optionMaybe (parens idP)
+        tokenP Seta
+        cmds <- many1 comandoP
+        return (Padrao variante captura, cmds)
 ---------------------------------------
 ---------------------------------------
 adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
-adicionarProcedimento p (Programa ps fs cs) = Programa (p : ps) fs cs
+adicionarProcedimento proc p = p { procedimentos = proc : procedimentos p }
 
 adicionarFuncao :: FuncaoR -> Programa -> Programa 
-adicionarFuncao f (Programa ps fs cs) = Programa ps (f : fs) cs
+adicionarFuncao f p = p { funcoes = f : funcoes p}
 
 adicionarComando :: Comando -> Programa -> Programa
-adicionarComando c (Programa ps fs cs) = Programa ps fs (c : cs)
+adicionarComando c p = p { comandos = c : comandos p }
+
+adicionarEnum :: EnumDecl -> Programa -> Programa
+adicionarEnum e p = p { enums = e : enums p }
 
 programaP :: Parser Programa
 programaP
   =   (adicionarProcedimento <$> procedimentoP <*> programaP)
-  <|> (adicionarFuncao       <$> try funcaoP       <*> programaP)
+  <|> (adicionarFuncao   <$> try funcaoP <*> programaP)
   <|> (adicionarComando <$> comandoP <*> programaP) 
-  <|> (Programa [] [] [] <$ eof)
+  <|> (adicionarEnum <$> enumDeclP <*> programaP)
+  <|> (Programa [] [] [] [] <$ eof)
   where
     procedimentoP :: Parser ProcedimentoR
     procedimentoP = do
@@ -338,6 +360,20 @@ litDictP = do
       tokenP DoisPontos
       value <- exprP
       return (key, value)
+
+enumDeclP :: Parser EnumDecl
+enumDeclP = do
+  start <- tokenP EnumTok
+  nome <- idP
+  vars <- sepBy1 varianteP (tokenP Virgula)
+  end <- tokenP FimEnum
+  return (EnumDecl (Pos start end) nome vars)
+  where
+    varianteP :: Parser VarianteEnum
+    varianteP = do
+      nome <- idP
+      tipo <- optionMaybe (try (parens tipoP))
+      return (VarianteEnum nome tipo)
 
 -- litMatrizP :: Parser Expr
 -- litMatrizP = do

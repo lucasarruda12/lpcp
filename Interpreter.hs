@@ -12,13 +12,13 @@ import Interpreter.Comando
 import Repr
 
 instance Evaluavel Programa where
-  eval (Programa ps fs cs) = do
+  eval (Programa ps fs es cs) = do
     modify $ \amb ->
-      amb { ps = ps, fs = fs, escopo = "main" } 
+      amb { ps = ps, fs = fs, es = es, escopo = "main" } 
     mapM_ eval cs
     return VNada
 
-run :: EvalM (Valor) -> IO ()
+run :: EvalM Valor -> IO ()
 run m = do
   (result, ambiente) <- runStateT (runExceptT m) ambienteVazio
   case result of

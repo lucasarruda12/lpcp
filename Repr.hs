@@ -64,6 +64,7 @@ instance Show Parametro where
 data Programa = Programa
   { procedimentos :: [ProcedimentoR]
   , funcoes       :: [FuncaoR]
+  , enums         :: [EnumDecl]
   -- Falta aqui:
   -- Funções
   -- Tipos definidos
@@ -105,6 +106,7 @@ data Comando
   | ImprimaCmd Pos Expr
   | RetorneCmd Pos Expr
   | ChamadaCmd Pos Id [Expr]
+  | CasamentoCmd Pos Expr [(Padrao, [Comando])]
 
 instance Positional Comando where
   getPos (Atribuicao p _ _) = p
@@ -162,6 +164,14 @@ data Lit
   | LFloat Pos Float
   | LReal Pos Double
   | LNada Pos
+
+data Padrao = Padrao Id (Maybe Id)
+
+data VarianteEnum = VarianteEnum Id (Maybe Tipo)
+  deriving (Show)
+
+data EnumDecl = EnumDecl Pos Id [VarianteEnum]
+  deriving (Show)
 
 instance Show Lit where
   show (LInt _ x) = show x

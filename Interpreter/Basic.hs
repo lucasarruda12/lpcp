@@ -21,6 +21,7 @@ data Ambiente = Am
   { memoria :: Map.Map (Escopo, Id) [Valor]
   , ps :: [ProcedimentoR]
   , fs :: [FuncaoR]
+  , es :: [EnumDecl]
   , escopo :: Escopo
   , cadeia_estatica :: [Escopo]
   , contagem_de_blocos :: Int
@@ -30,7 +31,7 @@ data Ambiente = Am
   deriving(Show)
 
 ambienteVazio :: Ambiente
-ambienteVazio = Am Map.empty [] [] [] [] 0
+ambienteVazio = Am Map.empty [] [] [] [] [] 0
 
 data Valor 
   = VInt Int
@@ -42,6 +43,7 @@ data Valor
   | VTuple [Valor]
   | VDict [(Valor, Valor)]
   | VNada
+  | VEnum Id [Valor]
   | VRef (String, Id)
   deriving (Eq)
 

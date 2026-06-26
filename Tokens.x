@@ -39,8 +39,7 @@ tokens :-
   "*" {\p _ -> Token p Vezes}
   "**" {\p _ -> Token p VezesVezes}
   "." {\p _ -> Token p Ponto}
-  "x" {\p _ -> Token p Xis}
-
+  
   PROCEDIMENTO {\p _ -> Token p Procedimento}
   FIM_PROCEDIMENTO. {\p _ -> Token p FimProcedimento}
   FUNCAO {\p _ -> Token p Funcao}
@@ -61,6 +60,9 @@ tokens :-
   IMPRIMA {\p _ -> Token p Imprima}
   NADA {\p _ -> Token p Nada}
 
+  ENUM {\p _ -> Token p EnumTok}
+  FIM_ENUM {\p _ -> Token p FimEnum}
+  
   -- Tipos
   int {\p _ -> Token p Int}
   float {\p _ -> Token p Float}
@@ -170,7 +172,10 @@ data TokenKind
   | Bool
   | String
   | Leia
-  | Xis
+  | EnumTok
+  | FimEnum
+  | CasamentoTok
+  | FimCasamento
   deriving (Eq)
 
 instance Show TokenKind where
@@ -234,7 +239,6 @@ instance Show TokenKind where
   show Bool= "bool"
   show String= "string"
   show Leia= "leia"
-  show Xis= "x"
    
 tokenize :: String -> [Token]
 tokenize = alexScanTokens

@@ -100,6 +100,28 @@ instance Evaluavel Comando where
 
   eval (RetorneCmd _ _) = error "Retorne fora de bloco"
 
+  eval (CasamentoCmd p noivo bracos) = comPosicao p $ do
+    scp <- novoBloco "CASAMENTO"
+    comEscopo id scp (do 
+      v <- eval noivo
+      executarBraco v bracos)
+    where
+      executarBraco _ [] = throwError $ UnexaustivePatterns p
+      executarBraco v ((Padrao variante captura, cmds) : resto) = 
+        case v of
+          VEnum nome valores ->
+            if nome == variante
+            then do
+              case (captura, valores) of
+                (Just var, [val]) -> addVar var val
+                _ -> return ()
+              eval cmds
+              return VNada
+            else executarBraco v resto
+          _ -> throwError $ TypeError p
+            
+      
+
 instance Evaluavel [Comando] where
   eval (cmd:cmds) = case cmd of
     (SeCmd p uncs) -> do
