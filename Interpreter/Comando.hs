@@ -4,6 +4,8 @@ import Control.Monad.State
 import Control.Monad.Except
 import Data.Functor
 
+import GHC.Float (float2Double, double2Float)
+
 import Interpreter.Basic
 import Interpreter.Erro
 import Interpreter.Expr
@@ -55,8 +57,9 @@ instance Evaluavel Comando where
     return VNada
 
   eval (ChamadaCmd p nome args) = comPosicao p $ do
-    proc <- getProc nome
-    eval (proc, args)
+    (ProcedimentoR p i pars cs) <- getProc nome
+    eval (p, i, pars, cs, args)
+    return VNada
 
   eval (EnquantoCmd p secs) = do
     scp <- novoBloco "ENQUANTO"
@@ -95,13 +98,56 @@ instance Evaluavel Comando where
 
     go secs 
 
-instance Evaluavel (ProcedimentoR, [Expr]) where
-  eval (p, es) = comEscopo (const ["main"]) nome $ do
+  eval (RetorneCmd _ _) = error "Retorne fora de bloco"
+
+instance Evaluavel [Comando] where
+  eval (cmd:cmds) = case cmd of
+    (SeCmd p uncs) -> do
+      scp <- novoBloco "SE"
+
+      let go [] = throwError (UnexaustivePatterns p)
+
+          go ((e,cmds'):uncs') = do
+            v <- eval e
+            case v of
+              VBool True -> do
+                comEscopo id scp (eval cmds')
+
+              VBool False -> go uncs'
+
+              _ -> throwError (TypeError p)
+
+      go uncs 
+
+    (EnquantoCmd p uncs) -> do
+      scp <- novoBloco "ENQUANTO"
+
+      let go [] = pure VNada
+
+          go ((e,cmds'):uncs') = do
+            v <- eval e
+            case v of
+              VBool True -> do
+                comEscopo id scp (eval cmds')
+                go uncs
+
+              VBool False -> go uncs'
+
+              _ -> throwError (TypeError p)
+
+      go uncs 
+
+    (RetorneCmd _ e) -> eval e
+
+    _ -> eval cmd *> eval cmds
+
+instance Evaluavel (Pos, Id, [Parametro], [Comando], [Expr])
+  where
+  eval (p, i, pars, cs, es) 
+    = comEscopo (const ["main"]) nome $ do
     add pars es -- Inicializa os parâmetros na memória
-    mapM_ eval cs -- Avalia os comandos
-    return VNada
+    eval cs -- Avalia os comandos
     where
-      (ProcedimentoR pos i pars cs) = p
       (IdR _ nome) = i
 
       add :: [Parametro] -> [Expr] -> EvalM ()
@@ -121,3 +167,154 @@ instance Evaluavel (ProcedimentoR, [Expr]) where
 
       add [] [] = pure ()
       add _ _ = throwError IncorrectNumberOfParameters
+
+instance Evaluavel Lit where
+  eval (LInt _ x) = pure $ VInt x
+  eval (LBool _ b) = pure $ VBool b
+  eval (LString _ s) = pure $ VString s
+  eval (LNada _) = pure VNada
+  eval (LReal _ r) = pure $ VReal r
+  eval (LFloat _ f) = pure $ VFloat f
+
+instance Evaluavel Expr where
+  eval (ELit l) = eval l
+  eval (EVar id) = getValue id
+
+  eval (ELeia p) = VString <$> liftIO getLine
+
+  eval (EChamada p i es) = do
+    (FuncaoR p i pars _ cmds) <- getFunc i
+    eval (p, i, pars, cmds, es)
+
+  eval (EIndice p container idx) = do
+    containerVal <- eval container
+    idxVal <- eval idx
+    case (containerVal, idxVal) of
+      (VList xs, VInt i) 
+        | i >= 0 && i < length xs -> return (xs !! i)
+        | otherwise -> throwError IndexOutOfBounds
+      
+      (VTuple xs, VInt i)
+        | i >= 0 && i < length xs -> return (xs !! i)
+        | otherwise -> throwError IndexOutOfBounds
+            
+      (VDict pairs, VString key) ->
+        case lookup (VString key) pairs of
+          Just v -> return v
+          Nothing -> throwError KeyNotFound
+      
+      _ -> throwError $ TypeError p
+
+  eval (EList _ elems) = do
+    vs <- mapM eval elems
+    return $ VList vs
+  eval (ETuple _ elems) = do
+    vs <- mapM eval elems
+    return $ VTuple vs
+  eval (EDict _ pairs) = do
+    ps <- mapM (\(k,v) -> do
+                  kk <- eval k
+                  vv <- eval v
+                  return (kk, vv)) pairs
+    return $ VDict ps
+  eval (EOpBin p op e1 e2) = do
+    v1 <- eval e1
+    v2 <- eval e2
+    case evalOpBin op v1 v2 of
+      Just v -> pure v
+      Nothing -> throwError $ TypeError p
+
+  eval (EOpUn p op e1) = do
+    v1 <- eval e1
+    case evalOpUn op v1 of
+      Just v -> pure v
+      Nothing -> throwError $ TypeError p
+
+
+evalOpBin :: OpBin -> Valor -> Valor -> Maybe Valor
+evalOpBin op (VInt x) (VInt y) = Just $ case op of
+  Soma -> VInt (x + y)
+  Sub -> VInt (x - y)
+  Mul -> VInt (x * y)
+  Div -> VInt (x `div` y)
+  Exp -> VInt (x ^ y)
+  Mod -> VInt (x `mod` y)
+  Menor -> VBool (x < y)
+  Maior -> VBool (x > y)
+  MenorIgualOp -> VBool (x <= y)
+  MaiorIgualOp -> VBool (x >= y)
+  IgualOp -> VBool (x == y)
+
+evalOpBin op (VReal x) (VReal y) = Just $ case op of
+  Soma -> VReal (x + y)
+  Sub -> VReal (x - y)
+  Mul -> VReal (x * y)
+  Div -> VReal (x / y)
+  Exp -> VReal (x ** y)
+  Menor -> VBool (x < y)
+  Maior -> VBool (x > y)
+  MenorIgualOp -> VBool (x <= y)
+  MaiorIgualOp -> VBool (x >= y)
+  IgualOp -> VBool (x == y)
+  DiferenteOp -> VBool (x /= y)
+
+evalOpBin op (VFloat x) (VFloat y) = Just $ case op of
+  Soma -> VFloat (x + y)
+  Sub -> VFloat (x - y)
+  Mul -> VFloat (x * y)
+  Div -> VFloat (x / y)
+  Exp -> VFloat (x ** y)
+  Menor -> VBool (x < y)
+  Maior -> VBool (x > y)
+  MenorIgualOp -> VBool (x <= y)
+  MaiorIgualOp -> VBool (x >= y)
+  IgualOp -> VBool (x == y)
+  DiferenteOp -> VBool (x /= y)
+
+evalOpBin op (VBool b1) (VBool b2) = Just $ case op of
+  AndOp -> VBool (b1 && b2)
+  OrOp -> VBool (b1 || b2)
+
+evalOpBin _ _ _ = Nothing
+
+evalOpUn :: OpUn -> Valor -> Maybe Valor
+evalOpUn Neg (VInt x) = Just $ VInt (-x)
+evalOpUn NaoOp (VBool b) = Just $ VBool (not b)
+evalOpUn (Conv TInt) v = Just $ case v of
+  (VInt x) -> VInt x
+  (VReal x) -> VInt (truncate x)
+  (VFloat x) -> VInt (truncate x)
+  (VBool True) -> VInt 1
+  (VBool False) -> VInt 0
+  (VString s) -> VInt (read s) --- TODO: MUUUIITO ERRADO!!!
+
+evalOpUn (Conv TBool) v = Just $ case v of
+  (VInt 0) -> VBool False
+  (VInt _) -> VBool True
+  (VReal 0) -> VBool False
+  (VReal _) -> VBool True
+  (VFloat 0) -> VBool False
+  (VFloat _) -> VBool True
+  (VString "") -> VBool False
+  (VString _) -> VBool True
+  VNada -> VBool False
+
+evalOpUn (Conv TReal) v = Just $ case v of
+  (VInt x) -> VReal (fromIntegral x)
+  (VFloat x) -> VReal (float2Double x)
+  (VBool True) -> VReal 1
+  (VBool False) -> VReal 0
+  (VString s) -> VReal (read s) --- TODO: MUUUIITO ERRADO!!!
+
+evalOpUn (Conv TFloat) v = Just $ case v of
+  (VInt x) -> VFloat (fromIntegral x)
+  (VReal x) -> VFloat (double2Float x)
+  (VBool True) -> VFloat 1
+  (VBool False) -> VFloat 0
+  (VString s) -> VFloat (read s) --- TODO: MUUUIITO ERRADO!!!
+
+evalOpUn (Conv TString) v = Just $ case v of
+  (VInt x) -> VString $ show x
+  (VReal x) -> VString $ show x
+  (VBool b) -> VString $ show b
+  VNada -> VString "nada"

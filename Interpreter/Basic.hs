@@ -176,4 +176,4 @@ getFunc nome = do
       | name == name' = Just f
       | otherwise = lookup name fs
     lookup _ [] = Nothing
-  
+

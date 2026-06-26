@@ -1,14 +1,15 @@
 FUNCAO soma(a :: Int, b :: Int) -> Int:
     RETORNE a + b;
+    IMPRIMA "aqui!";
 FIM_FUNCAO.
 
 PROCEDIMENTO nada():
     IMPRIMA "Nada";
 FIM_PROCEDIMENTO.
 
-INICIALIZE x :: Int COM 2;
+INICIALIZE X :: Int COM 2;
 INICIALIZE y :: Int COM 3;
 INICIALIZE z :: Int COM 0;
 
-z = soma(x, y);
+z = soma(X, y);
 IMPRIMA z;
