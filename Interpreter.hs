@@ -12,9 +12,13 @@ import Interpreter.Comando
 import Repr
 
 instance Evaluavel Programa where
-  eval (Programa ps fs es cs) = do
-    modify $ \amb ->
-      amb { ps = ps, fs = fs, es = es, escopo = "main" } 
+  eval (Programa ps fs ens es cs) = do
+    modify $ \amb -> amb
+      { ps = ps
+      , fs = fs
+      , ens = ens
+      , es = es
+      , escopo = "main" } 
     mapM_ eval cs
     return VNada
 

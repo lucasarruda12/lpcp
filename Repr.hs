@@ -58,12 +58,8 @@ data Programa = Programa
   { procedimentos :: [ProcedimentoR]
   , funcoes       :: [FuncaoR]
   , enums         :: [EnumDecl]
-  -- Falta aqui:
-  -- Funções
-  -- Tipos definidos
-  -- Mais (?)
-  --, enums :: [EnumDecl]
-  , comandos :: [Comando]
+  , estruturas    :: [EstruturaDecl]
+  , comandos      :: [Comando]
   }
   deriving (Show)
 
@@ -87,6 +83,7 @@ instance Positional FuncaoR where
 data Atribuendo
   = AId Id
   | AArray Id Expr
+  | AEstrutura Id Id
   | ARef Id
   deriving (Show)
 
@@ -172,6 +169,9 @@ data VarianteEnum = VarianteEnum Id (Maybe Tipo)
 data EnumDecl = EnumDecl Pos Id [VarianteEnum]
   deriving (Show)
 
+data EstruturaDecl = EstruturaDecl Pos Id [(Id, Tipo)]
+  deriving (Show)
+
 instance Show Lit where
   show (LInt _ x) = show x
   show (LString _ x) = show x
@@ -197,6 +197,8 @@ data Expr
   | ETuple Pos [Expr]
   | EDict Pos [(Expr, Expr)]
   | EEnum Pos Id Id (Maybe Expr)
+  | EAcesso Pos Id Id
+  | EEstrutura Pos [(Id, Expr)]
 
 instance Show Expr where
   show (ELit l) = show l
@@ -204,6 +206,10 @@ instance Show Expr where
   show (ELeia p) = "leia" ++ show p
   show (EOpBin p op e1 e2) = "(" ++ show e1 ++ " " ++ show op ++ " " ++ show e2 ++ ")"
   show (EOpUn p op e) = show op ++ show e ++ show p
+  show (EEnum _ enum variante (Just e)) = show enum ++ "::" ++ show variante ++ "(" ++ show e ++ "("
+  show (EEnum _ enum variante Nothing) = show enum ++ "::" ++ show variante
+  show (EAcesso _ est campo) = show est ++ "." ++ show campo
+  show (EEstrutura _ campos) = "{" ++ show campos ++ "}"
 
 instance Positional Expr where
   getPos (ELit l) = getPos l
