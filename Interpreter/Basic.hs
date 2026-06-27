@@ -21,7 +21,8 @@ data Ambiente = Am
   { memoria :: Map.Map (Escopo, Id) [Valor]
   , ps :: [ProcedimentoR]
   , fs :: [FuncaoR]
-  , es :: [EnumDecl]
+  , ens :: [EnumDecl]
+  , es :: [EstruturaDecl]
   , escopo :: Escopo
   , cadeia_estatica :: [Escopo]
   , contagem_de_blocos :: Int
@@ -31,7 +32,7 @@ data Ambiente = Am
   deriving(Show)
 
 ambienteVazio :: Ambiente
-ambienteVazio = Am Map.empty [] [] [] [] [] 0
+ambienteVazio = Am Map.empty [] [] [] [] [] [] 0
 
 data Valor 
   = VInt Int
@@ -45,6 +46,7 @@ data Valor
   | VNada
   | VEnum Id [Valor]
   | VRef (String, Id)
+  | VEstrutura [(Id, Valor)]
   deriving (Eq)
 
 instance Show Valor where
@@ -57,6 +59,7 @@ instance Show Valor where
   show (VTuple xs) = "(" ++ intercalate "," (map show xs) ++ ")"
   show (VDict pairs) = "{" ++ intercalate ", " (map showPair pairs) ++ "}"
     where showPair (k,v) = show k ++ ": " ++ show v
+  show (VEstrutura valores) = "{" ++ show valores ++ "}"
   show VNada = "Nada"
   show (VRef escopo) = show escopo
   show (VEnum nome vs) = show nome ++ show vs

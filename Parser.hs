@@ -162,9 +162,13 @@ comandoP =
 
       atribuendoP :: Parser Atribuendo
       atribuendoP =
-            try (AId <$> idP) 
-        <|> try (AArray <$> idP <*> exprP) 
+         try (AArray <$> idP <*> exprP) 
         <|> try (ARef <$> idP <* tokenP Vezes)
+        <|> try (do
+          nome <- idP
+          _ <- tokenP Ponto
+          AEstrutura nome <$> idP)
+        <|> try (AId <$> idP) 
 
       -- Imprima tem a posição do IMPRIMA
       imprimaP :: Parser Comando
@@ -275,13 +279,17 @@ adicionarComando c p = p { comandos = c : comandos p }
 adicionarEnum :: EnumDecl -> Programa -> Programa
 adicionarEnum e p = p { enums = e : enums p }
 
+adicionarEstrutura :: EstruturaDecl -> Programa -> Programa
+adicionarEstrutura e p = p { estruturas = e : estruturas p }
+
 programaP :: Parser Programa
 programaP
   =   (adicionarProcedimento <$> procedimentoP <*> programaP)
   <|> (adicionarFuncao   <$> try funcaoP <*> programaP)
   <|> (adicionarComando <$> comandoP <*> programaP) 
   <|> (adicionarEnum <$> enumDeclP <*> programaP)
-  <|> (Programa [] [] [] [] <$ eof)
+  <|> (adicionarEstrutura <$> estruturaDeclP <*> programaP)
+  <|> (Programa [] [] [] [] [] <$ eof)
   where
     -- Procedimento tem a posição do token PROCEDIMENTO
     procedimentoP :: Parser ProcedimentoR
@@ -386,6 +394,7 @@ enumDeclP :: Parser EnumDecl
 enumDeclP = do
   p <- tokenP EnumTok
   nome <- idP
+  _ <- tokenP DoisPontos
   vars <- sepBy1 varianteP (tokenP Virgula)
   _ <- tokenP FimEnum
   return (EnumDecl p nome vars)
@@ -396,6 +405,22 @@ enumDeclP = do
       tipo <- optionMaybe (try (parens tipoP))
       return (VarianteEnum nome tipo)
 
+estruturaDeclP :: Parser EstruturaDecl
+estruturaDeclP = do
+  p <- tokenP Estrutura
+  nome <- idP
+  _ <- tokenP DoisPontos
+  vars <- sepBy1 varianteP (tokenP Virgula)
+  _ <- tokenP FimEstrutura
+  return (EstruturaDecl p nome vars)
+  where
+    varianteP :: Parser (Id, Tipo)
+    varianteP = do
+      nome <- idP
+      _ <- tokenP QuatroPontos
+      tipo <- tipoP
+      return (nome, tipo)
+
 -- LitEnum tem a posição do primeiro identificador
 litEnumP :: Parser Expr
 litEnumP = do
@@ -404,6 +429,26 @@ litEnumP = do
   variante <- idP
   carga <- optionMaybe (parens exprP)
   return (EEnum (getPos enum) enum variante carga)
+
+litEstruturaP :: Parser Expr
+litEstruturaP = do
+  p <- tokenP ChaveEsq
+  campos <- sepBy1 campoP (tokenP Virgula)
+  _ <- tokenP ChaveDir
+  return (EEstrutura p campos)
+  where 
+    campoP :: Parser (Id, Expr)
+    campoP = do
+      campo <- idP
+      _ <- tokenP Igual
+      valor <- exprP
+      return (campo, valor)
+
+litAcessoP :: Parser Expr
+litAcessoP = do
+  nome <- idP
+  _ <- tokenP Ponto
+  EAcesso (getPos nome) nome <$> idP
 
 -- litMatrizP :: Parser Expr
 -- litMatrizP = do
@@ -478,6 +523,8 @@ exprP = buildExpressionParser table term <?> "Expression"
         <|> try litTuplaP
         <|> try litDictP
         <|> try litEnumP
+        <|> try litAcessoP
+        <|> try litEstruturaP
         -- <|> try litMatrizP
         <|> try (ELit <$> litP)
         <|> EVar <$> idP

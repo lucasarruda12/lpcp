@@ -64,6 +64,9 @@ tokens :-
   FIM_ENUM {\p _ -> Token p FimEnum}
   CASAMENTO { \p _ -> Token p CasamentoTok}
   FIM_CASAMENTO { \p _ -> Token p FimCasamento}
+
+  ESTRUTURA {\p _ -> Token p Estrutura}
+  FIM_ESTRUTURA. {\p _ -> Token p FimEstrutura}
   
   -- Tipos
   int {\p _ -> Token p Int}
@@ -178,6 +181,8 @@ data TokenKind
   | FimEnum
   | CasamentoTok
   | FimCasamento
+  | Estrutura
+  | FimEstrutura
   deriving (Eq)
 
 instance Show TokenKind where
@@ -202,6 +207,8 @@ instance Show TokenKind where
   show ParDir = ")"
   show ColEsq = "["
   show ColDir = "]"
+  show ChaveEsq = "{"
+  show ChaveDir = "}"
   show QuatroPontos = "::"
   show DoisPontos = ":"
   show EComercial = "&"
@@ -241,6 +248,12 @@ instance Show TokenKind where
   show Bool= "bool"
   show String= "string"
   show Leia= "leia"
+  show EnumTok="ENUM"
+  show FimEnum="FIM_ENUM."
+  show CasamentoTok="CASAMENTO"
+  show FimCasamento="FIM_CASAMENTO."
+  show Estrutura="ESTRUTURA"
+  show FimEstrutura="FIM_ESTRUTURA."
    
 tokenize :: String -> [Token]
 tokenize = alexScanTokens

@@ -44,6 +44,19 @@ instance Evaluavel Comando where
         -- Atualizar a variável original
         modificarVar arrayNome newArrayVal $> VNada
       
+      (AEstrutura nome campo) -> do
+        velha <- getValue nome
+        case velha of
+          VEstrutura campos ->
+            if any ((== campo) . fst) campos
+              then do
+                let novosCampos =
+                      map (\(c,v) -> if c == campo then (c,rv) else (c,v)) campos
+                modificarVar nome (VEstrutura novosCampos)
+                pure VNada
+              else
+                error ("Campo desconhecido: " ++ show campo)
+
       ARef _ -> throwError FaltaImplementar
 
   eval (ImprimaCmd _ e) = do
@@ -248,6 +261,20 @@ instance Evaluavel Expr where
       return (VEnum variante [v])
     Nothing -> return (VEnum variante [])
 
+  eval (EEstrutura _ campos) = do
+    let (ids, es) = unzip campos
+    vs <- mapM eval es
+    return (VEstrutura (zip ids vs))
+
+  eval (EAcesso _ nome campo) = do
+    est <- getValue nome
+    case est of
+      (VEstrutura campos) -> do
+        case lookup campo campos of
+          Just valor -> return valor
+          Nothing -> error (show nome ++ " não contém campo " ++ show campo)
+      _ -> error (show nome ++ " não é uma estrutura")
+
   eval (EOpBin p op e1 e2) = do
     v1 <- eval e1
     v2 <- eval e2
@@ -275,6 +302,7 @@ evalOpBin op (VInt x) (VInt y) = Just $ case op of
   MenorIgualOp -> VBool (x <= y)
   MaiorIgualOp -> VBool (x >= y)
   IgualOp -> VBool (x == y)
+  DiferenteOp -> VBool ( x /= y )
 
 evalOpBin op (VReal x) (VReal y) = Just $ case op of
   Soma -> VReal (x + y)

@@ -76,7 +76,7 @@ type CheqM a = ExceptT ErroSemanticaEstatica (State TabelaDeSimbolos) a
 -- É importante que seja nessa ordem: posso declarar variáveis no escopo externo que devem ser acessíveis no escopo interno dos procedimentos.
 -- Checar o escopo externo inclui adicionar as variáveis deles na tabela de símbolos. Isso tem que acontecer antes de checar os procedimentos.
 cheque :: Programa -> CheqM ()
-cheque (Programa ps fs es cmds) = do
+cheque (Programa ps fs ens es cmds) = do
   mapM_ addProcedimento ps -- Adiciona todos os procedimentos na tabela de símbolos
   mapM_ addFuncao fs -- Adiciona as funções?
   mapM_ chequeComando cmds -- Checa o escopo externo
