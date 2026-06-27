@@ -61,9 +61,9 @@ tokens :-
   NADA {\p _ -> Token p Nada}
 
   ENUM {\p _ -> Token p EnumTok}
-  FIM_ENUM {\p _ -> Token p FimEnum}
+  FIM_ENUM. {\p _ -> Token p FimEnum}
   CASAMENTO { \p _ -> Token p CasamentoTok}
-  FIM_CASAMENTO { \p _ -> Token p FimCasamento}
+  FIM_CASAMENTO. { \p _ -> Token p FimCasamento}
 
   ESTRUTURA {\p _ -> Token p Estrutura}
   FIM_ESTRUTURA. {\p _ -> Token p FimEstrutura}

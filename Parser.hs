@@ -328,6 +328,7 @@ hasRetorne = any isRetorne
     isRetorne (RetorneCmd _ _) = True
     isRetorne (SeCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
     isRetorne (EnquantoCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
+    isRetorne (CasamentoCmd _ _ bracos) = any (\(_, cmds) -> hasRetorne cmds) bracos -- adicionado o casamento 
     isRetorne _ = False
 
 parametroP :: Parser Parametro

@@ -1,0 +1,5 @@
+ENUM arvore: folha(INT), galho((arvore, arvore)) FIM_ENUM.
+INICIALIZE esq :: arvore COM arvore::folha(1);
+INICIALIZE dir :: arvore COM arvore::folha(2);
+INICIALIZE raiz :: arvore COM arvore::galho((esq, dir));
+IMPRIMA raiz;

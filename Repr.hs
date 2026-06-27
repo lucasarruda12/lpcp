@@ -123,6 +123,8 @@ instance Show Comando where
   show (ImprimaCmd _ nome) = "IMPRIMA " ++ show nome
   show (RetorneCmd _ nome) = "RETORNE " ++ show nome
   show (ChamadaCmd _ nome pars) = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
+  show (CasamentoCmd _ _ _) = "CASAMENTO" -- tava faltando isso
+  show (Incremento _ nome) = show nome ++ "++"
 
 -- == Tudo relacionado a expressões ==
 data OpBin
