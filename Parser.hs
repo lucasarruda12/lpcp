@@ -82,13 +82,14 @@ tipoP = do
     tipoBaseP :: Parser Tipo
     tipoBaseP
       = (do 
-        IdR _ tipo <- idP
+        nome@(IdR _ tipo) <- idP
         case tipo of
           "Int" -> return TInt
           "Float" -> return TFloat
           "Real" -> return TReal
           "Bool" -> return TBool
-          "String" -> return TString)
+          "String" -> return TString
+          _ -> return (TId nome))
       <|> try tipoListaP
       <|> try tipoTuplaP
       <|> try tipoDictP
@@ -244,8 +245,11 @@ comandoP =
       bracoP = do
         variante <- idP
         captura <- optionMaybe (parens idP)
-        tokenP Seta
+        tokenP Virgula
+        tokenP Faca
+        tokenP DoisPontos
         cmds <- many1 comandoP
+        tokenP FimFaca
         return (Padrao variante captura, cmds)
 ---------------------------------------
 ---------------------------------------
@@ -375,6 +379,14 @@ enumDeclP = do
       tipo <- optionMaybe (try (parens tipoP))
       return (VarianteEnum nome tipo)
 
+litEnumP :: Parser Expr
+litEnumP = do
+  enum <- idP
+  _ <- tokenP QuatroPontos
+  variante <- idP
+  carga <- optionMaybe (parens exprP)
+  return (EEnum (mergePos enum variante) enum variante carga)
+
 -- litMatrizP :: Parser Expr
 -- litMatrizP = do
 --   start <- tokenP ColEsq
@@ -448,6 +460,7 @@ exprP = buildExpressionParser table term <?> "Expression"
         <|> try litListaP
         <|> try litTuplaP
         <|> try litDictP
+        <|> try litEnumP
         -- <|> try litMatrizP
         <|> try (ELit <$> litP)
         <|> EVar <$> idP

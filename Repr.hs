@@ -197,6 +197,7 @@ data Expr
   | EList Pos [Expr]
   | ETuple Pos [Expr]
   | EDict Pos [(Expr, Expr)]
+  | EEnum Pos Id Id (Maybe Expr)
 
 instance Show Expr where
   show (ELit l) = show l

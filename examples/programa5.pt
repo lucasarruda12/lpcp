@@ -1,0 +1,18 @@
+ENUM cor
+  verde(Int),
+  vermelho,
+  azul
+FIM_ENUM
+
+INICIALIZE c :: cor COM cor::verde(2);
+
+CASAMENTO c:
+  verde(x), FAÇA:
+    IMPRIMA x;
+  FIM_FAÇA.
+
+  vermelho, FAÇA:
+    IMPRIMA "nada";
+  FIM_FAÇA.
+FIM_CASAMENTO
+

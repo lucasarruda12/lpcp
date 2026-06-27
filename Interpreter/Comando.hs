@@ -241,6 +241,13 @@ instance Evaluavel Expr where
                   vv <- eval v
                   return (kk, vv)) pairs
     return $ VDict ps
+
+  eval (EEnum pos enum variante me) = case me of
+    (Just e) -> do
+      v <- eval e
+      return (VEnum variante [v])
+    Nothing -> return (VEnum variante [])
+
   eval (EOpBin p op e1 e2) = do
     v1 <- eval e1
     v2 <- eval e2

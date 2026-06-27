@@ -62,6 +62,8 @@ tokens :-
 
   ENUM {\p _ -> Token p EnumTok}
   FIM_ENUM {\p _ -> Token p FimEnum}
+  CASAMENTO { \p _ -> Token p CasamentoTok}
+  FIM_CASAMENTO { \p _ -> Token p FimCasamento}
   
   -- Tipos
   int {\p _ -> Token p Int}

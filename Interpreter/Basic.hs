@@ -59,6 +59,7 @@ instance Show Valor where
     where showPair (k,v) = show k ++ ": " ++ show v
   show VNada = "Nada"
   show (VRef escopo) = show escopo
+  show (VEnum nome vs) = show nome ++ show vs
 
 type Escopo = String
 
