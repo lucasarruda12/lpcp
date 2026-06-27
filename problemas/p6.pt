@@ -1,7 +1,7 @@
 ENUM arvore:
   folha,
   galho((arvore, Int, arvore))
-FIM_ENUM.
+FIM_ENUM
 
 FUNCAO inserir(val :: Int, arv :: arvore) -> arvore:
   CASAMENTO arv:
@@ -18,7 +18,7 @@ FUNCAO inserir(val :: Int, arv :: arvore) -> arvore:
         FIM_FAÇA.
       FIM_SE.
     FIM_FAÇA.
-  FIM_CASAMENTO.
+  FIM_CASAMENTO
 FIM_FUNCAO.
 
 INICIALIZE a :: arvore COM arvore::folha;

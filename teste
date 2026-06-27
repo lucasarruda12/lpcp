@@ -1,0 +1,44 @@
+ENUM arvore:
+  folha,
+  galho((arvore, Int, arvore))
+FIM_ENUM
+
+INICIALIZE x :: Int COM 4;
+
+INICIALIZE a :: arvore COM arvore::galho((
+  arvore::folha,
+  3,
+  arvore::folha
+));
+
+INICIALIZE t2 :: arvore COM arvore::folha;
+
+FUNCAO inserir(a :: arvore, val :: Int) -> arvore:
+  CASAMENTO a:
+    galho(t), FAÇA:
+      SE:
+        val < t[1], FAÇA:
+          RETORNE arvore::galho((
+            inserir(t[0], val),
+            t[1],
+            t[2]
+          ));
+        FIM_FAÇA.
+
+        val >= t[1], FAÇA:
+          RETORNE arvore::galho((
+            t[0],
+            t[1],
+            inserir(t[2], val)
+          ));
+        FIM_FAÇA.
+      FIM_SE.
+    FIM_FAÇA.
+
+    folha, FAÇA:
+      RETORNE arvore::galho((arvore::folha, val, arvore::folha));
+    FIM_FAÇA.
+  FIM_CASAMENTO
+FIM_FUNCAO.
+
+IMPRIMA inserir(a, x);

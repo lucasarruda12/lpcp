@@ -72,7 +72,6 @@ instance Evaluavel Comando where
   eval (ChamadaCmd p nome args) = comPosicao p $ do
     (ProcedimentoR p i pars cs) <- getProc nome
     eval (p, i, pars, cs, args)
-    return VNada
 
   eval (EnquantoCmd p secs) = do
     scp <- novoBloco "ENQUANTO"
@@ -129,12 +128,9 @@ instance Evaluavel Comando where
                 (Just var, [val]) -> addVar var val
                 _ -> return ()
               eval cmds
-              return VNada
             else executarBraco v resto
-          _ -> throwError $ TypeError p
+          _ -> error (show v ++ " não é um enum")
             
-      
-
 instance Evaluavel [Comando] where
   eval (cmd:cmds) = case cmd of
     (SeCmd p uncs) -> do
@@ -174,33 +170,53 @@ instance Evaluavel [Comando] where
 
     (RetorneCmd _ e) -> eval e
 
+
+    (CasamentoCmd p noivo bracos) -> comPosicao p (do
+      scp <- novoBloco "CASAMENTO"
+      comEscopo id scp (do 
+        v <- eval noivo
+        executarBraco v bracos))
+
     _ -> eval cmd *> eval cmds
+
+    where
+      executarBraco _ [] = error "Padrão não existe"
+      executarBraco v ((Padrao variante captura, cmds) : resto) = 
+        case v of
+          VEnum nome valores ->
+            if nome == variante
+            then do
+              case (captura, valores) of
+                (Just var, [val]) -> addVar var val
+                _ -> return ()
+              eval cmds
+            else executarBraco v resto
+          _ -> error (show v ++ " não é um enum")
 
   eval [] = pure VNada
 
 instance Evaluavel (Pos, Id, [Parametro], [Comando], [Expr])
   where
-  eval (p, i, pars, cs, es) 
-    = comEscopo (const ["main"]) nome $ do
-    add pars es -- Inicializa os parâmetros na memória
-    eval cs -- Avalia os comandos
+  eval (p, IdR _ nome , pars, cs, es) = do
+    vs <- mapM eval es
+    comEscopo (const ["main"]) nome (do
+      add pars (zip vs es) -- Inicializa os parâmetros na memória
+      eval cs) -- Avalia os comandos
     where
-      (IdR _ nome) = i
-
-      add :: [Parametro] -> [Expr] -> EvalM ()
-      add ((Parametro n _ porref) : ps) (e : es) 
+      add :: [Parametro] -> [(Valor, Expr)] -> EvalM ()
+      add ((Parametro n _ porref) : ps) ((v, e) : ves) 
         | porref = case e of
           EVar indent -> do
-            v <- getRaw indent
-            case v of
+            v' <- getRaw indent
+            case v' of
               (VRef endereco) -> do
                 addVar n (VRef endereco)
-                add ps es
+                add ps ves
               _ -> do
                 scp <- resolveVar indent
                 addVar n (VRef (scp, indent))
           _ -> throwError FaltaImplementar
-        | otherwise = (eval e >>= addVar n) *> add ps es
+        | otherwise = addVar n v *> add ps ves
 
       add [] [] = pure ()
       add _ _ = throwError IncorrectNumberOfParameters

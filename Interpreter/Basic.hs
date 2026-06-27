@@ -101,7 +101,7 @@ getValue nome = do
   ces <- gets cadeia_estatica
   getValue' (scp:ces) mem
   where
-    getValue' []     _ = throwError $ UndefinedVariable (getPos nome)
+    getValue' []     _ = error ("Não encontrei " ++ show nome)
     getValue' (e:es) mem = case Map.lookup (e, nome) mem of
       Just ((VRef endereco):_) -> case Map.lookup endereco mem of
         Just (v:_) -> return v
