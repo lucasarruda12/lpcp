@@ -20,11 +20,11 @@ updatePos sp (Token (AlexPn _ line col) _) _ =
   newPos (sourceName sp) line col
 
 -- Joga fora o Token
-tokenP :: TokenKind -> Parser AlexPosn
+tokenP :: TokenKind -> Parser Pos
 tokenP k = tokenPrim show updatePos test
    where
     test t@(Token p k')
-      | k == k'   = Just p
+      | k == k'   = Just (Pos p)
       | otherwise = Nothing
 ---------------------------------------
 ---------------------------------------
@@ -32,7 +32,7 @@ tokenP k = tokenPrim show updatePos test
 idP :: Parser Id
 idP = tokenPrim show updatePos test
   where
-    test (Token p (Id s)) = Just (IdR (Pos p p) s)
+    test (Token p (Id s)) = Just (IdR (Pos p) s)
     test _ = Nothing
 
 litP :: Parser Lit
@@ -45,28 +45,28 @@ litP
   <|> litNadaP
   where
     litIntP = tokenPrim show updatePos testInt
-    testInt (Token p (LitInt x)) = Just (LInt (Pos p p) x)
+    testInt (Token p (LitInt x)) = Just (LInt (Pos p) x)
     testInt _ = Nothing
 
     litStringP = tokenPrim show updatePos testString
-    testString (Token p (LitString s)) = Just (LString (Pos p p) s)
+    testString (Token p (LitString s)) = Just (LString (Pos p) s)
     testString _ = Nothing
 
     litBoolP = tokenPrim show updatePos testBool
-    testBool (Token p (LitBool b)) = Just (LBool (Pos p p) b)
+    testBool (Token p (LitBool b)) = Just (LBool (Pos p) b)
     testBool _ = Nothing
 
     litRealP = tokenPrim show updatePos testReal
-    testReal (Token p (LitReal r)) = Just (LReal (Pos p p) r)
+    testReal (Token p (LitReal r)) = Just (LReal (Pos p) r)
     testReal _ = Nothing
 
     litFloatP = tokenPrim show updatePos testFloat
-    testFloat (Token p (LitFloat f)) = Just (LFloat (Pos p p) f)
+    testFloat (Token p (LitFloat f)) = Just (LFloat (Pos p) f)
     testFloat _ = Nothing
 
     litNadaP = do
       p <- tokenP Nada
-      return (LNada (Pos p p))
+      return (LNada p)
 
 litIntTokenP :: Parser Int
 litIntTokenP = tokenPrim show updatePos testInt
@@ -147,17 +147,18 @@ comandoP =
       incrementoP :: Parser Comando
       incrementoP = do
         id <- idP
-        tokenP MaisMais
-        tokenP PontoVirgula
+        _ <- tokenP MaisMais
+        _ <- tokenP PontoVirgula
         return (Incremento (getPos id) id)
       
+      -- Atribuição tem a posição do token =
       atribuicaoP :: Parser Comando
       atribuicaoP = do
         lvalue <- atribuendoP
-        tokenP Igual
+        p <- tokenP Igual
         e <- exprP
-        tokenP PontoVirgula
-        return (Atribuicao (mergePos lvalue e)  lvalue e)
+        _ <- tokenP PontoVirgula
+        return (Atribuicao p lvalue e)
 
       atribuendoP :: Parser Atribuendo
       atribuendoP =
@@ -165,59 +166,65 @@ comandoP =
         <|> try (AArray <$> idP <*> exprP) 
         <|> try (ARef <$> idP <* tokenP Vezes)
 
+      -- Imprima tem a posição do IMPRIMA
       imprimaP :: Parser Comando
       imprimaP = do
-        start <- tokenP Imprima
+        p <- tokenP Imprima
         e <- exprP
-        end <- tokenP PontoVirgula
-        return (ImprimaCmd (Pos start end) e)
+        _ <- tokenP PontoVirgula
+        return (ImprimaCmd p e)
 
+      -- Inicialização tem a posição do INICIAlIZE
       inicializacaoP :: Parser Comando
       inicializacaoP = do
-        start <- tokenP Inicialize
+        p <- tokenP Inicialize
         id <- idP
-        tokenP QuatroPontos
+        _ <- tokenP QuatroPontos
         t <- tipoP
-        tokenP Com
+        _ <- tokenP Com
         e <- exprP
-        end <- tokenP PontoVirgula
-        return (Inicializacao (Pos start end) id t e)
+        _ <- tokenP PontoVirgula
+        return (Inicializacao p id t e)
       
+      -- Declaração tem a posição do DECLARE
       declaracaoP :: Parser Comando
       declaracaoP = do
-        start <- tokenP Declare
+        p <- tokenP Declare
         id <- idP
-        tokenP QuatroPontos
+        _ <- tokenP QuatroPontos
         t <- tipoP
-        end <- tokenP PontoVirgula
-        return (Declaracao (Pos start end) id t)
+        _ <- tokenP PontoVirgula
+        return (Declaracao p id t)
       
+      -- Se tem a posição do SE
       seP :: Parser Comando
       seP = do
-        start <- tokenP Se
-        tokenP DoisPontos
+        p <- tokenP Se
+        _ <- tokenP DoisPontos
         unc <- many unidadeCondicionalP
-        end <- tokenP FimSe
-        return (SeCmd (Pos start end) unc)
+        _ <- tokenP FimSe
+        return (SeCmd p unc)
 
       unidadeCondicionalP :: Parser (Expr, [Comando])
       unidadeCondicionalP = do
         cond <- exprP
-        tokenP Virgula
-        tokenP Faca
-        tokenP DoisPontos
+        _ <- tokenP Virgula
+        _ <- tokenP Faca
+        _ <- tokenP DoisPontos
         cmds <- many comandoP
-        tokenP FimFaca
+        _ <- tokenP FimFaca
         return (cond, cmds)
       
+      -- Enquanto tem a posição do ENQUANTO
       enquantoP :: Parser Comando
       enquantoP = do
-        start <- tokenP Enquanto
-        tokenP DoisPontos
+        p <- tokenP Enquanto
+        _ <- tokenP DoisPontos
         unc <- many unidadeCondicionalP
-        end <- tokenP FimEnquanto
-        return (EnquantoCmd (Pos start end) unc)
+        _ <- tokenP FimEnquanto
+        return (EnquantoCmd p unc)
 
+      -- Chamada tem a posição do identificador
       chamadaCmdP :: Parser Comando
       chamadaCmdP = do
         p <- idP
@@ -225,21 +232,23 @@ comandoP =
         tokenP PontoVirgula
         return (ChamadaCmd (getPos p) p args)
   
+      -- Retorne tem a posição do RETORNE
       retorneP :: Parser Comando
       retorneP = do
-          start <- tokenP Retorne
+          p <- tokenP Retorne
           e <- exprP
-          end <- tokenP PontoVirgula
-          return (RetorneCmd (Pos start end) e)
+          _ <- tokenP PontoVirgula
+          return (RetorneCmd p e)
 
+      -- Casamento tem a posição do CASAMENTO
       casamentoP :: Parser Comando
       casamentoP = do
-        start <- tokenP CasamentoTok
+        p <- tokenP CasamentoTok
         noivo <- exprP
-        tokenP DoisPontos
+        _ <- tokenP DoisPontos
         bracos <- many bracoP
-        end <- tokenP FimCasamento
-        return (CasamentoCmd (Pos start end) noivo bracos)
+        _ <- tokenP FimCasamento
+        return (CasamentoCmd p noivo bracos)
 
       bracoP :: Parser (Padrao, [Comando])
       bracoP = do
@@ -253,6 +262,7 @@ comandoP =
         return (Padrao variante captura, cmds)
 ---------------------------------------
 ---------------------------------------
+
 adicionarProcedimento :: ProcedimentoR -> Programa -> Programa
 adicionarProcedimento proc p = p { procedimentos = proc : procedimentos p }
 
@@ -273,34 +283,36 @@ programaP
   <|> (adicionarEnum <$> enumDeclP <*> programaP)
   <|> (Programa [] [] [] [] <$ eof)
   where
+    -- Procedimento tem a posição do token PROCEDIMENTO
     procedimentoP :: Parser ProcedimentoR
     procedimentoP = do
-      start <- tokenP Procedimento
+      p <- tokenP Procedimento
       id <- idP
-      paresq <- tokenP ParEsq
+      _ <- tokenP ParEsq
       parametros <- sepBy parametroP (tokenP Virgula)
-      pardir <- tokenP ParDir
-      tokenP DoisPontos
+      _ <- tokenP ParDir
+      _ <- tokenP DoisPontos
       cmds <- many comandoP
-      end <- tokenP FimProcedimento <?> "FIM_PROCEDIMENTO."
-      return (ProcedimentoR (Pos start end) id parametros cmds)
+      _ <- tokenP FimProcedimento <?> "FIM_PROCEDIMENTO."
+      return (ProcedimentoR p id parametros cmds)
 
+    -- Função tem a posição do token FUNCAO
     funcaoP :: Parser FuncaoR
     funcaoP = do
-        start <- tokenP Funcao
+        p <- tokenP Funcao
         idFuncao <- idP
-        tokenP ParEsq
+        _ <- tokenP ParEsq
         parametros <- sepBy parametroP (tokenP Virgula)
-        tokenP ParDir
-        tokenP Seta
+        _ <- tokenP ParDir
+        _ <- tokenP Seta
         tipoRetorno <- tipoP
-        tokenP DoisPontos
+        _ <- tokenP DoisPontos
         cmds <- many comandoP
-        end <- tokenP FimFuncao <?> "FIM_FUNCAO."
+        _ <- tokenP FimFuncao <?> "FIM_FUNCAO."
         
         if not (hasRetorne cmds)
             then fail ("A funcao '" ++ show idFuncao ++ "' deve conter pelo menos um comando RETORNE.")
-            else return (FuncaoR (Pos start end) idFuncao parametros tipoRetorno cmds)
+            else return (FuncaoR p idFuncao parametros tipoRetorno cmds)
 
 hasRetorne :: [Comando] -> Bool
 hasRetorne = any isRetorne
@@ -310,7 +322,6 @@ hasRetorne = any isRetorne
     isRetorne (EnquantoCmd _ blocos) = any (\(_, cmds) -> hasRetorne cmds) blocos
     isRetorne _ = False
 
--- Isso aqui não vai funcionar
 parametroP :: Parser Parametro
 parametroP = do
   ref <- optionMaybe(tokenP EComercial)
@@ -319,6 +330,7 @@ parametroP = do
   t <- tipoP
   return(Parametro id t (isJust ref))
 
+-- Chamda tem a posição do identificador
 chamadaP :: Parser Expr
 chamadaP = do
   f <- idP
@@ -327,36 +339,40 @@ chamadaP = do
   tokenP ParDir
   return (EChamada (getPos f) f args)
 
+-- Indice tem a posição do identificador
 indiceP :: Parser Expr
 indiceP = do
   v <- idP
-  tokenP ColEsq
+  _ <- tokenP ColEsq
   idx <- exprP
-  tokenP ColDir
-  return (EIndice (mergePos v idx) (EVar v) idx)
+  _ <- tokenP ColDir
+  return (EIndice (getPos v) (EVar v) idx)
 
+-- Lista tem a posição do primeiro [
 litListaP :: Parser Expr
 litListaP = do
-  start <- tokenP ColEsq
+  p <- tokenP ColEsq
   elems <- sepBy exprP (tokenP Virgula)
-  end <- tokenP ColDir
-  return (EList (Pos start end) elems)
+  _ <- tokenP ColDir
+  return (EList p elems)
 
+-- Tupla tem a posição do primeiro (
 litTuplaP :: Parser Expr
 litTuplaP = do
-  start <- tokenP ParEsq
+  p <- tokenP ParEsq
   elems <- sepBy exprP (tokenP Virgula)
-  end <- tokenP ParDir
+  _ <- tokenP ParDir
   case elems of
     [e] -> unexpected "tupla precisa de pelo menos dois elementos"
-    _ -> return (ETuple (Pos start end) elems)
+    _ -> return (ETuple p elems)
 
+-- Dict tem a posição do primeiro {
 litDictP :: Parser Expr
 litDictP = do
-  start <- tokenP ChaveEsq
+  p <- tokenP ChaveEsq
   pairs <- sepBy pairP (tokenP Virgula)
-  end <- tokenP ChaveDir
-  return (EDict (Pos start end) pairs)
+  _ <- tokenP ChaveDir
+  return (EDict p pairs)
   where
     pairP :: Parser (Expr, Expr)
     pairP = do
@@ -365,13 +381,14 @@ litDictP = do
       value <- exprP
       return (key, value)
 
+-- EnumDecl tem a posição do token ENUM
 enumDeclP :: Parser EnumDecl
 enumDeclP = do
-  start <- tokenP EnumTok
+  p <- tokenP EnumTok
   nome <- idP
   vars <- sepBy1 varianteP (tokenP Virgula)
-  end <- tokenP FimEnum
-  return (EnumDecl (Pos start end) nome vars)
+  _ <- tokenP FimEnum
+  return (EnumDecl p nome vars)
   where
     varianteP :: Parser VarianteEnum
     varianteP = do
@@ -379,13 +396,14 @@ enumDeclP = do
       tipo <- optionMaybe (try (parens tipoP))
       return (VarianteEnum nome tipo)
 
+-- LitEnum tem a posição do primeiro identificador
 litEnumP :: Parser Expr
 litEnumP = do
   enum <- idP
   _ <- tokenP QuatroPontos
   variante <- idP
   carga <- optionMaybe (parens exprP)
-  return (EEnum (mergePos enum variante) enum variante carga)
+  return (EEnum (getPos enum) enum variante carga)
 
 -- litMatrizP :: Parser Expr
 -- litMatrizP = do
@@ -393,7 +411,6 @@ litEnumP = do
 --   rows <- sepBy (sepBy exprP (tokenP Virgula)) (tokenP PontoVirgula)
 --   end <- tokenP ColDir
 --   return (EMatrix (Pos start end) rows)
-
 
 -- Documentação do buildExpressionParser:
 -- https://hackage.haskell.org/package/parsec-3.1.18.0/docs/Text-Parsec-Expr.html
@@ -428,13 +445,13 @@ exprP = buildExpressionParser table term <?> "Expression"
       ]
 
     binOpP tk op = do
-      tokenP tk
+      p <- tokenP tk
       pure $ \l r -> 
-        EOpBin (mergePos l r) op l r
+        EOpBin p op l r
 
     unOpP tk op = do  
-      tokenP tk
-      pure $ \e -> EOpUn (getPos e) op e
+      p <- tokenP tk
+      pure $ \e -> EOpUn p op e
 
     convP :: Parser Expr
     convP = 
@@ -450,9 +467,9 @@ exprP = buildExpressionParser table term <?> "Expression"
         ]
 
     convP' op tok = do
-      start <- tokenP tok
+      p <- tokenP tok
       e <- parens exprP
-      return $ EOpUn (getPos e) op e
+      return $ EOpUn p op e
 
     term =
         try chamadaP
@@ -465,5 +482,5 @@ exprP = buildExpressionParser table term <?> "Expression"
         <|> try (ELit <$> litP)
         <|> EVar <$> idP
         <|> convP
-        <|> (do p <- tokenP Leia; return (ELeia (Pos p p)))
+        <|> (ELeia <$> tokenP Leia)
         <|> parens exprP

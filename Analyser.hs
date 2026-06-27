@@ -2,6 +2,7 @@ module Analyser (analiseEstatica) where
 
 import Repr
 import Control.Monad
+import Data.Functor
 import Control.Monad.Except
 import Control.Monad.State
 import qualified Data.Map as Map
@@ -22,33 +23,42 @@ import qualified Data.Set as Set
 -- Helpers ---------------------------- 
 (+-+) :: String -> String -> String
 s1 +-+ s2 = s1 ++ ' ':s2
+
+error' :: String -> a
+error' s = error ("[No analisador de semântica estática] " ++ s)
 ---------------------------------------
 ---------------------------------------
 
 data ErroSemanticaEstatica
   = ErroDeTipo Tipo Tipo
   | ErroDeTipoAttr (String, Tipo) (String, Tipo)
-  | NumeroIncorretoDeParametros
+  | NumeroIncorretoDeParametros Int Int
   | JaDeclarado String Pos
   | NaoDeclarado String
+  | NaoDefinido Tipo
+  | JaDefinido String Pos
   | Contexto String ErroSemanticaEstatica
-  | Outro String
 
 instance Show ErroSemanticaEstatica where
-  show (ErroDeTipoAttr (n1, t1) (n2, t2)) = "A atribuição de" +-+ n1 +-+ "esperava" +-+ show t1 +-+ "mas recebeu" +-+ n2 +-+ "::" +-+ show t2
   show (ErroDeTipo t1 t2) = "Esperava" +-+ show t1 +-+ "e recebi" +-+ show t2
+  show (ErroDeTipoAttr (n1, t1) (n2, t2)) = "A atribuição de" +-+ n1 +-+ "esperava" +-+ show t1 +-+ "mas recebeu" +-+ n2 +-+ "::" +-+ show t2
+  show (NumeroIncorretoDeParametros n1 n2) = "Numero Incorreto de Parâmtros. Esperava" +-+ show n1 +-+ "e recebi" +-+ show n2
+  show (JaDeclarado nome pos) = "A variável" +-+ nome +-+ "já foi declarada em" +-+ show pos
+  show (NaoDeclarado nome) = "Não declarado:" +-+ nome
+  show (NaoDefinido t) = "O tipo" +-+ show t +-+ "não foi definido"
+  show (JaDefinido nome pos) = nome +-+ "já foi definido em" +-+ show pos
   show (Contexto c err) = c ++ "\n>" +-+ show err
-  show (NaoDeclarado nome) = "Variável não declarada:" +-+ nome
+
 
 primitivos :: Set.Set Tipo
-primitivos = Set.fromList [TInt, TFloat, TReal, TString, TBool]
+primitivos = Set.fromList [TInt, TFloat, TReal, TString, TBool, TNada]
 
 numericos :: Set.Set Tipo
 numericos = Set.fromList [TInt, TFloat, TReal]
 
 data TabelaDeSimbolos = TS 
-  { ps :: Map.Map String Pos
-  , funcoes :: Map.Map String Pos
+  { ps :: Map.Map String (Pos, [Tipo])
+  , fs :: Map.Map String (Pos, [Tipo], Tipo)
   , variaveis :: [Map.Map String (Pos, Tipo)]
   , tipos :: Set.Set Tipo
   }
@@ -74,22 +84,55 @@ cheque (Programa ps fs es cmds) = do
   mapM_ chequeFuncao fs -- Checa as funções?
 
 addFuncao :: FuncaoR -> CheqM ()
-addFuncao = undefined
+addFuncao f@(FuncaoR pos (IdR _ nome) pars tipo _) 
+  = comContexto f $ do
+    declaradas <- gets fs
+    when (Map.member nome declaradas)
+      (throwError (JaDefinido nome pos))
+    pars' <- mapM chequeParametro pars 
+    _ <- chequeTipo tipo
+    modify $ \ts 
+      -> ts { fs = Map.insert nome (pos, pars', tipo) declaradas }
 
 addProcedimento :: ProcedimentoR -> CheqM ()
-addProcedimento = undefined
+addProcedimento p@(ProcedimentoR pos (IdR _ nome) pars _)
+  = comContexto p $ do
+    declarados <- gets ps
+    when (Map.member nome declarados)
+      (throwError (JaDefinido nome pos))
+    pars' <- mapM chequeParametro pars
+    modify $ \ts
+      -> ts { ps = Map.insert nome (pos, pars') declarados }
 
-chequeProcedimento :: ProcedimentoR -> chequeM ()
-chequeProcedimento = undefined
+chequeTipo :: Tipo -> CheqM ()
+chequeTipo tipo = do
+  definidos <- gets tipos
+  unless (Set.member tipo definidos)
+    (throwError (NaoDefinido tipo))
+
+chequeParametro :: Parametro -> CheqM Tipo
+chequeParametro (Parametro _ tipo _) 
+  = chequeTipo tipo $> tipo
+
+declParametro :: Parametro -> CheqM ()
+declParametro (Parametro (IdR p nome) tipo _) 
+  = declVar nome p tipo
+
+chequeProcedimento :: ProcedimentoR -> CheqM ()
+chequeProcedimento p@(ProcedimentoR _ _ pars cmds) 
+  = comEscopo (comContexto p
+    (mapM_ declParametro pars >> mapM_ chequeComando cmds))
 
 chequeFuncao :: FuncaoR -> CheqM ()
-chequeFuncao = undefined
+chequeFuncao f@(FuncaoR _ _ pars _ cmds) 
+  = comEscopo (comContexto f 
+    (mapM_ declParametro pars >> mapM_ chequeComando cmds))
 
 -- Usa esse aqui como exemplo:
 chequeComando :: Comando -> CheqM ()
 chequeComando cmd = 
   comContexto cmd $ case cmd of -- <- comContexto
-    (ImprimaCmd p e) ->
+    (ImprimaCmd _ e) ->
       void (chequeExpr e)
 
     -- Usa esse aqui como exemplo:
@@ -103,15 +146,39 @@ chequeComando cmd =
     (Declaracao p (IdR _ nome) tipo) ->
       declVar nome p tipo
 
-    (Atribuicao p (AId (IdR _ lnome)) rvalue) ->
+    (Atribuicao _ (AId (IdR _ lnome)) rvalue) ->
       chequeAtribuicao lnome rvalue
 
     -- Unidade de Comandos de Condicionais (UNC) :D
-    (EnquantoCmd p uncs) ->
-      mapM_ chequeUnc uncs
+    (EnquantoCmd _ uncs) -> comEscopo
+      (mapM_ chequeUnc uncs)
 
-    (SeCmd p uncs) ->
-      mapM_ chequeUnc uncs
+    (SeCmd _ uncs) -> comEscopo 
+      (mapM_ chequeUnc uncs)
+
+    (Incremento _ (IdR _ nome)) ->
+      void (getVar nome)
+
+    (RetorneCmd _ e) ->
+      void (chequeExpr e) 
+      
+    (ChamadaCmd _ (IdR _ nome) attrs) ->
+      void (chequeChamadaCmd nome attrs)
+
+chequeChamadaCmd :: String -> [Expr] -> CheqM Tipo
+chequeChamadaCmd nome attrs = do
+  (_, pars) <- getProcedimento nome
+  attrs' <- mapM chequeExpr attrs
+  let (l1, l2) = (length pars, length attrs')
+  unless (l1 == l2)
+    (throwError (NumeroIncorretoDeParametros l1 l2))
+  mapM_ chequeTipos (zip pars attrs')
+  return TNada
+  where 
+    chequeTipos :: (Tipo, Tipo) -> CheqM ()
+    chequeTipos (t1, t2) = 
+      unless (t1 == t2)
+        (throwError (ErroDeTipo t1 t2))
 
 chequeAtribuicao :: String -> Expr -> CheqM ()
 chequeAtribuicao lnome rvalue = do
@@ -140,18 +207,38 @@ chequeExpr' (ELit l) = case l of
   LBool _ _ -> pure TBool
   LFloat _ _ -> pure TFloat
   LReal _ _ -> pure TReal
-chequeExpr' fe@(EOpUn p op e) = do
+  LNada _  -> pure TNada
+
+chequeExpr' fe@(EOpUn _ op e) = do
   t <- chequeExpr' e
-  chequeUnOp (show p +-+ show fe +-+ show p) op t
-chequeExpr' fe@(EOpBin p op e1 e2) = do
+  comContexto fe 
+    (chequeUnOp op t)
+
+chequeExpr' fe@(EOpBin _ op e1 e2) = do
   t1 <- chequeExpr' e1
   t2 <- chequeExpr' e2
-  chequeOpBin (show p +-+ show fe) op t1 t2
-chequeExpr' (ELeia _) = pure TString
-chequeExpr' (EVar (IdR p nome)) = getVar nome
+  comContexto fe
+   (chequeOpBin op t1 t2)
 
-chequeUnOp :: String -> OpUn -> Tipo -> CheqM Tipo
-chequeUnOp s op t = comContexto' s $ do
+chequeExpr' (ELeia _) = pure TString
+chequeExpr' (EVar (IdR _ nome)) = getVar nome
+
+chequeExpr' (EChamada p (IdR _ nome) attrs) = do
+  (pos, pars, tipo) <- getFuncao nome
+  attrs' <- mapM chequeExpr attrs
+  let (l1, l2) = (length pars, length attrs')
+  unless (l1 == l2)
+    (throwError (NumeroIncorretoDeParametros l1 l2))
+  mapM_ chequeTipos (zip pars attrs')
+  return tipo
+  where 
+    chequeTipos :: (Tipo, Tipo) -> CheqM ()
+    chequeTipos (t1, t2) = 
+      unless (t1 == t2)
+        (throwError (ErroDeTipo t1 t2))
+
+chequeUnOp :: OpUn -> Tipo -> CheqM Tipo
+chequeUnOp op t = do
   case op of
     Neg -> 
       if t `Set.member` numericos 
@@ -166,11 +253,11 @@ chequeUnOp s op t = comContexto' s $ do
       then return t2
       else throwError (ErroDeTipo t2 t)
 
-chequeOpBin :: String -> OpBin -> Tipo -> Tipo -> CheqM Tipo
-chequeOpBin c op t1 t2 = comContexto' c $ do
+chequeOpBin :: OpBin -> Tipo -> Tipo -> CheqM Tipo
+chequeOpBin op t1 t2 = do
   let tipos_nums = all (`Set.member` numericos) [t1, t2]
   let tipos_iguais = t1 == t2
-  let op_numerica = op `elem` [Soma, Mul, Div, Exp, Mod]
+  let op_numerica = op `elem` [Soma, Mul, Div, Exp, Mod, Sub]
   let op_comp = op `elem` [Menor, Maior, MenorIgualOp, MaiorIgualOp, IgualOp, DiferenteOp]
   let bool_op = op `elem` [AndOp, OrOp]
   case () of
@@ -190,7 +277,17 @@ chequeOpBin c op t1 t2 = comContexto' c $ do
       if t1 == TBool && t2 == TBool
         then pure TBool
         else throwError (ErroDeTipo TBool (if t1 /= TBool then t1 else t2))
+    () | otherwise -> 
+      error' "Na checagem de tipos: Tipo não identificado"
 
+comEscopo :: CheqM a -> CheqM a
+comEscopo acao = do
+  modify $ \ts 
+    -> ts { variaveis = Map.empty : variaveis ts }
+  a <- acao
+  modify $ \ts
+    -> ts { variaveis = drop 1 (variaveis ts) }
+  return a
 
 -- comCOntexto: Em alguns momentos eu quero uma coisa simples. Em outros uma coisa mais complicada:
 
@@ -219,8 +316,22 @@ getVar nome = do
   vars <- gets variaveis
   getVar' nome vars
   where
-    getVar' nome (v:vs) = case Map.lookup nome v of
+    getVar' nome' (v:vs) = case Map.lookup nome' v of
       Just (_, tipo) -> pure tipo
       Nothing -> getVar' nome vs
-    getVar' nome [] = throwError (NaoDeclarado nome)
+    getVar' nome' [] = throwError (NaoDeclarado nome')
 
+
+getFuncao :: String -> CheqM (Pos, [Tipo], Tipo)
+getFuncao nome = do
+  definidos <- gets fs
+  case Map.lookup nome definidos of
+    Just (p, tipos, tipo) -> return (p, tipos, tipo)
+    Nothing -> throwError (NaoDeclarado nome)
+
+getProcedimento :: String -> CheqM (Pos, [Tipo])
+getProcedimento nome = do
+  definidos <- gets ps
+  case Map.lookup nome definidos of
+    Just (p, tipos) -> return (p, tipos)
+    Nothing -> throwError (NaoDeclarado nome)

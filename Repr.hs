@@ -3,22 +3,14 @@ module Repr where
 import Lexer
 import Data.List (intercalate)
 
-data Pos = Pos 
-  { inicio :: AlexPosn
-  , fim    :: AlexPosn }
+newtype Pos = Pos AlexPosn
   deriving (Eq, Ord)
 
 instance Show Pos where
-  show (Pos (AlexPn _ l c) _) = "[l" ++ show l ++ ":c" ++ show c ++ "]"
+  show (Pos (AlexPn _ l c)) = "[l" ++ show l ++ ":c" ++ show c ++ "]"
 
 class Positional a where
   getPos :: a -> Pos
-
-mergePos :: (Positional a, Positional b) => a -> b -> Pos
-mergePos a b = Pos s e
-  where 
-    (Pos s _) = getPos a
-    (Pos _ e) = getPos b
 
 data Id = IdR Pos String
 
@@ -41,6 +33,7 @@ data Tipo
   | TFloat
   | TBool
   | TReal
+  | TNada
   | TList Tipo
   | TTuple [Tipo]
   | TDict Tipo Tipo
@@ -77,6 +70,9 @@ data Programa = Programa
 data ProcedimentoR
   = ProcedimentoR Pos Id [Parametro] [Comando]
 
+instance Positional ProcedimentoR where
+  getPos (ProcedimentoR p _ _ _) = p
+
 instance Show ProcedimentoR where
   show (ProcedimentoR _ nome pars _) 
     = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
@@ -84,6 +80,9 @@ instance Show ProcedimentoR where
 data FuncaoR 
   = FuncaoR Pos Id [Parametro] Tipo [Comando]
   deriving (Show)
+
+instance Positional FuncaoR where
+  getPos (FuncaoR p _ _ _ _) = p
 
 data Atribuendo
   = AId Id
@@ -93,7 +92,7 @@ data Atribuendo
 
 instance Positional Atribuendo where
   getPos (AId id) = getPos id
-  getPos (AArray id e) = mergePos id e
+  getPos (AArray id e) = getPos id
   getPos (ARef id) = getPos id
 
 data Comando

@@ -3,7 +3,6 @@ module Main where
 import Lexer
 import Text.Parsec
 import Parser
-import Repr
 import Interpreter
 import Analyser
 import Control.Monad
@@ -31,3 +30,4 @@ main = do
     ["--unsafe"] -> putStrLn "Forneça o nome de um arquivo para iniciar"
     ["--unsafe", a] -> rodar a False
     [a] -> rodar a True
+    _ -> putStrLn "Forneça o nome de um arquivo para iniciar"
