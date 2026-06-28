@@ -25,17 +25,17 @@ INICIALIZE a :: arvore COM arvore::folha;
 INICIALIZE a :: arvore COM inserir(5, a);
 INICIALIZE a :: arvore COM inserir(3, a);
 INICIALIZE a :: arvore COM inserir(7, a);
-FUNCAO minimo(arv :: arvore, nivel :: Int) -> Int:
+INICIALIZE a :: arvore COM inserir(1, a);
+INICIALIZE a :: arvore COM inserir(9, a);
+FUNCAO minimo(arv :: arvore, nivel :: Int) -> (Int, Int):
   CASAMENTO arv:
     folha, FAÇA:
-      RETORNE 0;
-    FIM_FACA.
+      RETORNE (0, 0);
+    FIM_FAÇA.
     galho(t), FAÇA:
       CASAMENTO t[0]:
         folha, FAÇA:
-          IMPRIMA t[1];
-          IMPRIMA nivel;
-          RETORNE t[1];
+          RETORNE (t[1], nivel);
         FIM_FAÇA.
         galho(esq), FAÇA:
           RETORNE minimo(t[0], nivel + 1);
@@ -44,17 +44,16 @@ FUNCAO minimo(arv :: arvore, nivel :: Int) -> Int:
     FIM_FAÇA.
   FIM_CASAMENTO.
 FIM_FUNCAO.
-FUNCAO maximo(arv :: arvore, nivel :: Int) -> Int:
+
+FUNCAO maximo(arv :: arvore, nivel :: Int) -> (Int, Int):
   CASAMENTO arv:
     folha, FAÇA:
-      RETORNE 0;
+      RETORNE (0, 0);
     FIM_FAÇA.
     galho(t), FAÇA:
       CASAMENTO t[2]:
         folha, FAÇA:
-          IMPRIMA t[1];
-          IMPRIMA nivel;
-          RETORNE t[1];
+          RETORNE (t[1], nivel);
         FIM_FAÇA.
         galho(dir), FAÇA:
           RETORNE maximo(t[2], nivel + 1);
@@ -64,7 +63,7 @@ FUNCAO maximo(arv :: arvore, nivel :: Int) -> Int:
   FIM_CASAMENTO.
 FIM_FUNCAO.
 IMPRIMA a;
-INICIALIZE m :: Int COM minimo(a, 1);
-INICIALIZE mx :: Int COM maximo(a, 1);
-IMPRIMA "Minimo: " + string(m) + ", Nivel: " + string(2);
-IMPRIMA "Maximo: " + string(mx) + ", Nivel: " + string(2);
+INICIALIZE m :: (Int, Int) COM minimo(a, 1);
+INICIALIZE mx :: (Int, Int) COM maximo(a, 1);
+IMPRIMA "Minimo: " + string(m[0]) + ", Nivel: " + string(m[1]);
+IMPRIMA "Maximo: " + string(mx[0]) + ", Nivel: " + string(mx[1]);

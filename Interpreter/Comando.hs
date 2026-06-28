@@ -3,6 +3,7 @@ module Interpreter.Comando where
 import Control.Monad.State
 import Control.Monad.Except
 import Data.Functor
+import Data.List (intercalate)
 
 import GHC.Float (float2Double, double2Float)
 
@@ -394,4 +395,5 @@ evalOpUn (Conv TString) v = Just $ case v of
   (VInt x) -> VString $ show x
   (VReal x) -> VString $ show x
   (VBool b) -> VString $ show b
+  (VTuple xs) -> VString $ "(" ++ intercalate "," (map show xs) ++ ")" -- talvez seja meio gambiarra (estou fazendo para o p6 exclusivamente)
   VNada -> VString "nada"
