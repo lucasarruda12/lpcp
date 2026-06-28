@@ -1,7 +1,7 @@
 ENUM arvore:
   folha,
   galho((arvore, Int, arvore))
-FIM_ENUM
+FIM_ENUM.
 
 FUNCAO inserir(val :: Int, arv :: arvore) -> arvore:
   CASAMENTO arv:
@@ -18,11 +18,53 @@ FUNCAO inserir(val :: Int, arv :: arvore) -> arvore:
         FIM_FAÇA.
       FIM_SE.
     FIM_FAÇA.
-  FIM_CASAMENTO
+  FIM_CASAMENTO.
 FIM_FUNCAO.
 
 INICIALIZE a :: arvore COM arvore::folha;
 INICIALIZE a :: arvore COM inserir(5, a);
 INICIALIZE a :: arvore COM inserir(3, a);
 INICIALIZE a :: arvore COM inserir(7, a);
+FUNCAO minimo(arv :: arvore, nivel :: Int) -> Int:
+  CASAMENTO arv:
+    folha, FAÇA:
+      RETORNE 0;
+    FIM_FACA.
+    galho(t), FAÇA:
+      CASAMENTO t[0]:
+        folha, FAÇA:
+          IMPRIMA t[1];
+          IMPRIMA nivel;
+          RETORNE t[1];
+        FIM_FAÇA.
+        galho(esq), FAÇA:
+          RETORNE minimo(t[0], nivel + 1);
+        FIM_FAÇA.
+      FIM_CASAMENTO.
+    FIM_FAÇA.
+  FIM_CASAMENTO.
+FIM_FUNCAO.
+FUNCAO maximo(arv :: arvore, nivel :: Int) -> Int:
+  CASAMENTO arv:
+    folha, FAÇA:
+      RETORNE 0;
+    FIM_FAÇA.
+    galho(t), FAÇA:
+      CASAMENTO t[2]:
+        folha, FAÇA:
+          IMPRIMA t[1];
+          IMPRIMA nivel;
+          RETORNE t[1];
+        FIM_FAÇA.
+        galho(dir), FAÇA:
+          RETORNE maximo(t[2], nivel + 1);
+        FIM_FAÇA.
+      FIM_CASAMENTO.
+    FIM_FAÇA.
+  FIM_CASAMENTO.
+FIM_FUNCAO.
 IMPRIMA a;
+INICIALIZE m :: Int COM minimo(a, 1);
+IMPRIMA m;
+INICIALIZE mx :: Int COM maximo(a, 1);
+IMPRIMA mx;
