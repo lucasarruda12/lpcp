@@ -1,0 +1,17 @@
+ESTRUTURA teste:
+    a :: Int,
+    b :: Int
+FIM_ESTRUTURA.
+
+INICIALIZE x :: teste COM { a = 1, b = 2 };
+
+FUNCAO constroi(a :: Int, b :: Int) -> teste:
+    RETORNE { a = a, b = b };
+FIM_FUNCAO.
+
+IMPRIMA constroi(3, 4);
+x = constroi(5, 6);
+IMPRIMA x;
+
+INICIALIZE y :: teste COM constroi(7, 8);
+IMPRIMA y;

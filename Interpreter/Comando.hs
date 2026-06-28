@@ -131,7 +131,8 @@ instance Evaluavel Comando where
               eval cmds
             else executarBraco v resto
           _ -> error (show v ++ " não é um enum")
-            
+
+
 instance Evaluavel [Comando] where
   eval (cmd:cmds) = case cmd of
     (SeCmd p uncs) -> do
@@ -149,7 +150,8 @@ instance Evaluavel [Comando] where
 
               _ -> throwError (TypeError p)
 
-      go uncs 
+      go uncs
+      -- eval cmds
 
     (EnquantoCmd p uncs) -> do
       scp <- novoBloco "ENQUANTO"
@@ -167,16 +169,22 @@ instance Evaluavel [Comando] where
 
               _ -> throwError (TypeError p)
 
-      go uncs 
+      go uncs
+    --eval cmds
+
+    -- (RetorneCmd _ e) -> do
+    --   v <- eval e
+    --   return (VRetorno v)
 
     (RetorneCmd _ e) -> eval e
-
 
     (CasamentoCmd p noivo bracos) -> comPosicao p (do
       scp <- novoBloco "CASAMENTO"
       comEscopo id scp (do 
         v <- eval noivo
-        executarBraco v bracos))
+        executarBraco v bracos)
+      --eval cmds
+      )
 
     _ -> eval cmd *> eval cmds
 

@@ -47,6 +47,7 @@ data Valor
   | VEnum Id [Valor]
   | VRef (String, Id)
   | VEstrutura [(Id, Valor)]
+  | VRetorno Valor
   deriving (Eq)
 
 instance Show Valor where

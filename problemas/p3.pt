@@ -1,0 +1,24 @@
+PROCEDIMENTO soma_matriz(m1 :: [[Int]], m2 :: [[Int]], i :: Int, j :: Int):
+    ENQUANTO:
+        i < 3, FAÇA:
+            ENQUANTO:
+                j < 3, FAÇA:
+                    IMPRIMA m1[i][j] + m2[i][j];
+                    j = j + 1;
+                    IMPRIMA "j = " + string(j);
+                FIM_FAÇA.
+            FIM_ENQUANTO.
+            IMPRIMA "Saindo do enquanto.";
+            j = 0;
+            i = i + 1;
+        FIM_FAÇA.
+    FIM_ENQUANTO.
+FIM_PROCEDIMENTO.   
+
+
+INICIALIZE matriz1 :: [[Int]] COM [[2,2,1],[1,5,0],[0,0,1]];
+INICIALIZE matriz2 :: [[Int]] COM [[5,7,1],[0,3,0],[1,0,8]];
+INICIALIZE i :: Int COM 0;
+INICIALIZE j :: Int COM 0;
+
+soma_matriz(matriz1, matriz2, i, j);
