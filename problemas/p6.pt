@@ -64,7 +64,9 @@ FUNCAO maximo(arv :: arvore, nivel :: Int) -> Int:
   FIM_CASAMENTO.
 FIM_FUNCAO.
 IMPRIMA a;
+IMPRIMA "Minimo:";
 INICIALIZE m :: Int COM minimo(a, 1);
 IMPRIMA m;
+IMPRIMA "Maximo:";
 INICIALIZE mx :: Int COM maximo(a, 1);
 IMPRIMA mx;

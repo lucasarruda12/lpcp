@@ -20,3 +20,6 @@ evalComRetorno se@(SeCmd _ _):cmds = evalComRertorno se *> evalComRetorno cmds
 evalComRetorno enquanto@(Enquanto _ _):cmds = evalComRertorno enquanto *> evalComRetorno cmds
 evalComRetorno cmd:cmds = eval cmd *> evalComRetorno cmds
 evalComRetorno [] = pure ()
+
+- Adicionar concatenaçao de Strings
+- Resolver o problema 6D
