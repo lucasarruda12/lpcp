@@ -350,6 +350,8 @@ evalOpBin op (VBool b1) (VBool b2) = Just $ case op of
   AndOp -> VBool (b1 && b2)
   OrOp -> VBool (b1 || b2)
 
+evalOpBin Soma (VString s1) (VString s2) = Just $ VString (s1 ++ s2) -- concatenaçao (talvez nao seja a a melhor maneira)
+
 evalOpBin _ _ _ = Nothing
 
 evalOpUn :: OpUn -> Valor -> Maybe Valor
