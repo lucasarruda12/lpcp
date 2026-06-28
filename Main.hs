@@ -18,7 +18,7 @@ rodar s safe = do
     Right programa -> do
       when safe 
         (for_ (analiseEstatica programa) putStrLn)
-      run (eval programa)
+      run programa
     Left err -> print err
 
 main :: IO ()

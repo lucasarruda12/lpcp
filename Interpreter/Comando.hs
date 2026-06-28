@@ -9,309 +9,274 @@ import GHC.Float (float2Double, double2Float)
 
 import Interpreter.Basic
 import Interpreter.Erro
-import Interpreter.Expr
 
 import Repr
 import Parser (chamadaP)
 
-instance Evaluavel Comando where
-  eval (Atribuicao p lv e) = do
-    rv <- eval e
-    case lv of
-      AId nome -> modificarVar nome rv $> VNada
-      AArray arrayNome idxExpr -> do
-        -- Buscar a lista/tupla/dicionário
-        arrayVal <- getValue arrayNome
-        idxVal <- eval idxExpr
-        
-        -- Criar nova estrutura com o valor modificado
-        newArrayVal <- case (arrayVal, idxVal) of
-          (VList xs, VInt i)
-            | i >= 0 && i < length xs -> 
-                return $ VList (take i xs ++ [rv] ++ drop (i+1) xs)
-            | otherwise -> throwError IndexOutOfBounds
-          
-          (VTuple xs, VInt i)
-            | i >= 0 && i < length xs ->
-                return $ VTuple (take i xs ++ [rv] ++ drop (i+1) xs)
-            | otherwise -> throwError IndexOutOfBounds
-          
-          (VDict pairs, VString key) ->
-            let newPairs = map (\(k,v) -> if k == VString key then (k, rv) else (k,v)) pairs
-            in return $ VDict newPairs
-          
-          _ -> throwError $ TypeError p
-        
-        -- Atualizar a variável original
-        modificarVar arrayNome newArrayVal $> VNada
-      
-      (AEstrutura nome campo) -> do
-        velha <- getValue nome
-        case velha of
-          VEstrutura campos ->
-            if any ((== campo) . fst) campos
-              then do
-                let novosCampos =
-                      map (\(c,v) -> if c == campo then (c,rv) else (c,v)) campos
-                modificarVar nome (VEstrutura novosCampos)
-                pure VNada
-              else
-                error ("Campo desconhecido: " ++ show campo)
+-- (>>=) quer dizer: a coisa da esquerda gera valor. Pegue esse valor e use como argumento na coisa da direta
+-- (>>) quer dizer: a coisa da esquerda gera valor. Ignore esse valor e retorne seja lá o que a coisa da direita retornar.
+--
+-- ghci> retorne 3 >>= print
+-- 3
+--
+-- ghci> ghci retorne 3 >> print "oi!"
+-- oi
 
-      ARef _ -> throwError FaltaImplementar
+-- Os comandos em geral não produzem valor.
+-- O RETORNE produz valor.
+-- Os comandos que tem comandos dentro deles talvez produzem valor
+-- (Se tiverem um retorne lá dentro).
+evalCmds :: [Comando] -> EvalM (Maybe Valor)
+evalCmds [] = pure Nothing
+evalCmds (cmd:cmds) = case cmd of
+  (Atribuicao p lv e) -> 
+    evalAtribuicao p lv e >> evalCmds cmds
 
-  eval (ImprimaCmd _ e) = do
-    v <- eval e
-    liftIO $ print v
-    return v
+  (ImprimaCmd _ e) -> 
+    (evalExpr e >>= liftIO . print) >> evalCmds cmds
 
-  eval (Inicializacao p i t e) = comPosicao p $ do
-    v <- eval e
-    addVar i v
-    return VNada
+  (Inicializacao _ i t e) ->
+    (evalExpr e >>= addVar i) >> evalCmds cmds
 
-  eval (ChamadaCmd p nome args) = comPosicao p $ do
-    (ProcedimentoR p i pars cs) <- getProc nome
-    eval (p, i, pars, cs, args)
+  (ChamadaCmd p nome args) -> 
+    getProc nome >>= (`evalProcedimento` args) >> evalCmds cmds
 
-  eval (EnquantoCmd p secs) = do
+  (EnquantoCmd p uncs) -> do
     scp <- novoBloco "ENQUANTO"
 
-    let go [] = pure VNada
+    let go [] = pure Nothing
 
-        go ((e,cmds):uncs) = do
-          v <- eval e
+        go ((e,cmds'):uncs') = do
+          v <- evalExpr e
           case v of
             VBool True -> do
-              comEscopo id scp (mapM_ eval cmds)
-              go secs
+              comEscopo id scp (evalCmds cmds')
+              go uncs
 
-            VBool False -> go uncs
+            VBool False -> go uncs'
 
             _ -> throwError (TypeError p)
 
-    go secs 
-          
+    retorno <- go uncs
+    case retorno of
+      Nothing -> evalCmds cmds
+      v -> return v
 
-  eval (SeCmd p secs) = do
+  (SeCmd p uncs) -> do
     scp <- novoBloco "SE"
 
     let go [] = throwError (UnexaustivePatterns p)
 
-        go ((e,cmds):uncs) = do
-          v <- eval e
+        go ((e,cmds'):uncs') = do
+          v <- evalExpr e
           case v of
             VBool True -> do
-              comEscopo id scp (mapM_ eval cmds)
-              return VNada
+              comEscopo id scp (evalCmds cmds')
 
-            VBool False -> go uncs
+            VBool False -> go uncs'
 
             _ -> throwError (TypeError p)
 
-    go secs 
+    retorno <- go uncs
+    case retorno of
+      Nothing -> evalCmds cmds
+      v -> return v
 
-  eval (RetorneCmd _ _) = error "Retorne fora de bloco"
-
-  eval (CasamentoCmd p noivo bracos) = comPosicao p $ do
+  (CasamentoCmd p noivo bracos) -> comPosicao p $ do
     scp <- novoBloco "CASAMENTO"
-    comEscopo id scp (do 
-      v <- eval noivo
-      executarBraco v bracos)
-    where
-      executarBraco _ [] = throwError $ UnexaustivePatterns p
-      executarBraco v ((Padrao variante captura, cmds) : resto) = 
-        case v of
-          VEnum nome valores ->
-            if nome == variante
+    comEscopo id scp $ do 
+      v <- evalExpr noivo
+      retorno <- evalBraco v bracos
+      case retorno of
+        Nothing -> evalCmds cmds
+        v -> return v
+
+  (RetorneCmd _ e) -> Just <$> evalExpr e
+
+evalBraco :: Valor -> [(Padrao, [Comando])] -> EvalM (Maybe Valor)
+evalBraco _ [] = error "Padrão não existe"
+evalBraco v ((Padrao variante captura, cmds) : resto) = 
+  case v of
+    VEnum nome valores ->
+      if nome == variante
+      then do
+        case (captura, valores) of
+          (Just var, [val]) -> addVar var val
+          _ -> return ()
+        evalCmds cmds
+      else evalBraco v resto
+    _ -> error (show v ++ " não é um enum")
+
+evalAtribuicao :: Pos -> Atribuendo -> Expr -> EvalM ()
+evalAtribuicao p lv e = do
+  rv <- evalExpr e
+  case lv of
+    AId nome -> modificarVar nome rv $> ()
+    AArray arrayNome idxExpr -> do
+      -- Buscar a lista/tupla/dicionário
+      arrayVal <- getValue arrayNome
+      idxVal <- evalExpr idxExpr
+      
+      -- Criar nova estrutura com o valor modificado
+      newArrayVal <- case (arrayVal, idxVal) of
+        (VList xs, VInt i)
+          | i >= 0 && i < length xs -> 
+              return $ VList (take i xs ++ [rv] ++ drop (i+1) xs)
+          | otherwise -> throwError IndexOutOfBounds
+        
+        (VTuple xs, VInt i)
+          | i >= 0 && i < length xs ->
+              return $ VTuple (take i xs ++ [rv] ++ drop (i+1) xs)
+          | otherwise -> throwError IndexOutOfBounds
+        
+        (VDict pairs, VString key) ->
+          let newPairs = map (\(k,v) -> if k == VString key then (k, rv) else (k,v)) pairs
+          in return $ VDict newPairs
+        
+        _ -> throwError $ TypeError p
+      
+      -- Atualizar a variável original
+      modificarVar arrayNome newArrayVal $> ()
+    
+    (AEstrutura nome campo) -> do
+      velha <- getValue nome
+      case velha of
+        VEstrutura campos ->
+          if any ((== campo) . fst) campos
             then do
-              case (captura, valores) of
-                (Just var, [val]) -> addVar var val
-                _ -> return ()
-              eval cmds
-            else executarBraco v resto
-          _ -> error (show v ++ " não é um enum")
+              let novosCampos =
+                    map (\(c,v) -> if c == campo then (c,rv) else (c,v)) campos
+              modificarVar nome (VEstrutura novosCampos)
+              pure ()
+            else
+              error ("Campo desconhecido: " ++ show campo)
 
+    ARef _ -> throwError FaltaImplementar
 
-instance Evaluavel [Comando] where
-  eval (cmd:cmds) = case cmd of
-    (SeCmd p uncs) -> do
-      scp <- novoBloco "SE"
+-- Joga fora o retorno de um procedimento
+evalProcedimento :: ProcedimentoR -> [Expr] -> EvalM ()
+evalProcedimento (ProcedimentoR p ident pars cmds) args =
+  void (evalSubprograma (p, ident, pars, cmds, args))
 
-      let go [] = throwError (UnexaustivePatterns p)
+-- Se uma função não encontrou retorno,
+-- panic!!
+evalFuncao :: FuncaoR -> [Expr] -> EvalM Valor
+evalFuncao (FuncaoR p i pars _ cmds) args = do
+  retorno <- evalSubprograma (p, i, pars, cmds, args)
+  case retorno of
+    Just v -> return v
+    Nothing -> error "Função sem retorno"
 
-          go ((e,cmds'):uncs') = do
-            v <- eval e
-            case v of
-              VBool True -> do
-                comEscopo id scp (eval cmds')
-
-              VBool False -> go uncs'
-
-              _ -> throwError (TypeError p)
-
-      go uncs
-      -- eval cmds
-
-    (EnquantoCmd p uncs) -> do
-      scp <- novoBloco "ENQUANTO"
-
-      let go [] = pure VNada
-
-          go ((e,cmds'):uncs') = do
-            v <- eval e
-            case v of
-              VBool True -> do
-                comEscopo id scp (eval cmds')
-                go uncs
-
-              VBool False -> go uncs'
-
-              _ -> throwError (TypeError p)
-
-      go uncs
-    --eval cmds
-
-    -- (RetorneCmd _ e) -> do
-    --   v <- eval e
-    --   return (VRetorno v)
-
-    (RetorneCmd _ e) -> eval e
-
-    (CasamentoCmd p noivo bracos) -> comPosicao p (do
-      scp <- novoBloco "CASAMENTO"
-      comEscopo id scp (do 
-        v <- eval noivo
-        executarBraco v bracos)
-      --eval cmds
-      )
-
-    _ -> eval cmd *> eval cmds
-
-    where
-      executarBraco _ [] = error "Padrão não existe"
-      executarBraco v ((Padrao variante captura, cmds) : resto) = 
-        case v of
-          VEnum nome valores ->
-            if nome == variante
-            then do
-              case (captura, valores) of
-                (Just var, [val]) -> addVar var val
-                _ -> return ()
-              eval cmds
-            else executarBraco v resto
-          _ -> error (show v ++ " não é um enum")
-
-  eval [] = pure VNada
-
-instance Evaluavel (Pos, Id, [Parametro], [Comando], [Expr])
+-- Isso aqui tá feio e mal feito.
+-- Se tiver algum erro aqui nessa parte, 
+-- a recomendação da OMS é rezar.
+-- Se for Umberto, por favor pule para a função seguinte.
+evalSubprograma :: (Pos, Id, [Parametro], [Comando], [Expr]) -> EvalM (Maybe Valor)
+evalSubprograma (p, IdR _ nome , pars, cs, es) = do
+  vs <- mapM evalExpr es
+  comEscopo (const ["main"]) nome $ do
+    add pars (zip vs es) -- Inicializa os parâmetros na memória
+    evalCmds cs -- Avalia os comandos
   where
-  eval (p, IdR _ nome , pars, cs, es) = do
-    vs <- mapM eval es
-    comEscopo (const ["main"]) nome (do
-      add pars (zip vs es) -- Inicializa os parâmetros na memória
-      eval cs) -- Avalia os comandos
-    where
-      add :: [Parametro] -> [(Valor, Expr)] -> EvalM ()
-      add ((Parametro n _ porref) : ps) ((v, e) : ves) 
-        | porref = case e of
-          EVar indent -> do
-            v' <- getRaw indent
-            case v' of
-              (VRef endereco) -> do
-                addVar n (VRef endereco)
-                add ps ves
-              _ -> do
-                scp <- resolveVar indent
-                addVar n (VRef (scp, indent))
-          _ -> throwError FaltaImplementar
-        | otherwise = addVar n v *> add ps ves
+    add :: [Parametro] -> [(Valor, Expr)] -> EvalM ()
+    add ((Parametro n _ porref) : ps) ((v, e) : ves) 
+      | porref = case e of
+        EVar indent -> do
+          v' <- getRaw indent
+          case v' of
+            (VRef endereco) -> do
+              addVar n (VRef endereco)
+              add ps ves
+            _ -> do
+              scp <- resolveVar indent
+              addVar n (VRef (scp, indent))
+        _ -> throwError FaltaImplementar
+      | otherwise = addVar n v *> add ps ves
 
-      add [] [] = pure ()
-      add _ _ = throwError IncorrectNumberOfParameters
+    add [] [] = pure ()
+    add _ _ = throwError IncorrectNumberOfParameters
 
-instance Evaluavel Lit where
-  eval (LInt _ x) = pure $ VInt x
-  eval (LBool _ b) = pure $ VBool b
-  eval (LString _ s) = pure $ VString s
-  eval (LNada _) = pure VNada
-  eval (LReal _ r) = pure $ VReal r
-  eval (LFloat _ f) = pure $ VFloat f
+evalLit :: Lit -> EvalM Valor
+evalLit (LInt _ x) = pure $ VInt x
+evalLit (LBool _ b) = pure $ VBool b
+evalLit (LString _ s) = pure $ VString s
+evalLit (LNada _) = pure VNada
+evalLit (LReal _ r) = pure $ VReal r
+evalLit (LFloat _ f) = pure $ VFloat f
 
-instance Evaluavel Expr where
-  eval (ELit l) = eval l
-  eval (EVar id) = getValue id
+-- Toda expressão produz valor
+evalExpr :: Expr -> EvalM Valor
+evalExpr (ELit l) = evalLit l
+evalExpr (EVar id) = getValue id
+evalExpr (ELeia p) = VString <$> liftIO getLine
 
-  eval (ELeia p) = VString <$> liftIO getLine
+evalExpr (EChamada p ident args) = 
+  getFunc ident >>= (`evalFuncao` args)
 
-  eval (EChamada p i es) = do
-    (FuncaoR p i pars _ cmds) <- getFunc i
-    eval (p, i, pars, cmds, es)
+evalExpr (EIndice p container idx) = do
+  containerVal <- evalExpr container
+  idxVal <- evalExpr idx
+  case (containerVal, idxVal) of
+    (VList xs, VInt i) 
+      | i >= 0 && i < length xs -> return (xs !! i)
+      | otherwise -> throwError IndexOutOfBounds
+    
+    (VTuple xs, VInt i)
+      | i >= 0 && i < length xs -> return (xs !! i)
+      | otherwise -> throwError IndexOutOfBounds
+          
+    (VDict pairs, VString key) ->
+      case lookup (VString key) pairs of
+        Just v -> return v
+        Nothing -> throwError KeyNotFound
+    
+    _ -> throwError $ TypeError p
 
-  eval (EIndice p container idx) = do
-    containerVal <- eval container
-    idxVal <- eval idx
-    case (containerVal, idxVal) of
-      (VList xs, VInt i) 
-        | i >= 0 && i < length xs -> return (xs !! i)
-        | otherwise -> throwError IndexOutOfBounds
-      
-      (VTuple xs, VInt i)
-        | i >= 0 && i < length xs -> return (xs !! i)
-        | otherwise -> throwError IndexOutOfBounds
-            
-      (VDict pairs, VString key) ->
-        case lookup (VString key) pairs of
-          Just v -> return v
-          Nothing -> throwError KeyNotFound
-      
-      _ -> throwError $ TypeError p
+evalExpr (EList _ elems) = do
+  vs <- mapM evalExpr elems
+  return $ VList vs
+evalExpr (ETuple _ elems) = do
+  vs <- mapM evalExpr elems
+  return $ VTuple vs
+evalExpr (EDict _ pairs) = do
+  ps <- mapM (\(k,v) -> do
+                kk <- evalExpr k
+                vv <- evalExpr v
+                return (kk, vv)) pairs
+  return $ VDict ps
 
-  eval (EList _ elems) = do
-    vs <- mapM eval elems
-    return $ VList vs
-  eval (ETuple _ elems) = do
-    vs <- mapM eval elems
-    return $ VTuple vs
-  eval (EDict _ pairs) = do
-    ps <- mapM (\(k,v) -> do
-                  kk <- eval k
-                  vv <- eval v
-                  return (kk, vv)) pairs
-    return $ VDict ps
+evalExpr (EEnum pos enum variante me) = case me of
+  (Just e) -> do
+    v <- evalExpr e
+    return (VEnum variante [v])
+  Nothing -> return (VEnum variante [])
 
-  eval (EEnum pos enum variante me) = case me of
-    (Just e) -> do
-      v <- eval e
-      return (VEnum variante [v])
-    Nothing -> return (VEnum variante [])
+evalExpr (EEstrutura _ campos) = do
+  let (ids, es) = unzip campos
+  vs <- mapM evalExpr es
+  return (VEstrutura (zip ids vs))
 
-  eval (EEstrutura _ campos) = do
-    let (ids, es) = unzip campos
-    vs <- mapM eval es
-    return (VEstrutura (zip ids vs))
+evalExpr (EAcesso _ nome campo) = do
+  est <- getValue nome
+  case est of
+    (VEstrutura campos) -> do
+      case lookup campo campos of
+        Just valor -> return valor
+        Nothing -> error (show nome ++ " não contém campo " ++ show campo)
+    _ -> error (show nome ++ " não é uma estrutura")
 
-  eval (EAcesso _ nome campo) = do
-    est <- getValue nome
-    case est of
-      (VEstrutura campos) -> do
-        case lookup campo campos of
-          Just valor -> return valor
-          Nothing -> error (show nome ++ " não contém campo " ++ show campo)
-      _ -> error (show nome ++ " não é uma estrutura")
+evalExpr (EOpBin p op e1 e2) = do
+  v1 <- evalExpr e1
+  v2 <- evalExpr e2
+  case evalOpBin op v1 v2 of
+    Just v -> pure v
+    Nothing -> throwError $ TypeError p
 
-  eval (EOpBin p op e1 e2) = do
-    v1 <- eval e1
-    v2 <- eval e2
-    case evalOpBin op v1 v2 of
-      Just v -> pure v
-      Nothing -> throwError $ TypeError p
-
-  eval (EOpUn p op e1) = do
-    v1 <- eval e1
-    case evalOpUn op v1 of
-      Just v -> pure v
-      Nothing -> throwError $ TypeError p
+evalExpr (EOpUn p op e1) = do
+  v1 <- evalExpr e1
+  case evalOpUn op v1 of
+    Just v -> pure v
+    Nothing -> throwError $ TypeError p
 
 
 evalOpBin :: OpBin -> Valor -> Valor -> Maybe Valor

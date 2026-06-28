@@ -20,7 +20,7 @@ ENQUANTO:
       FIM_FAÇA.
 
       x <= 100, FAÇA:
-        i3 = i3 + 1;
+        i4 = i3 + 1;
       FIM_FAÇA.
 
       x > 100, FAÇA:

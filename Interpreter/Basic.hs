@@ -14,9 +14,6 @@ comPosicao :: Pos -> EvalM a -> EvalM a
 comPosicao p m = 
   catchError m (throwError . Context p)
 
-class Evaluavel a where
-  eval :: a -> EvalM Valor
-
 data Ambiente = Am
   { memoria :: Map.Map (Escopo, Id) [Valor]
   , ps :: [ProcedimentoR]
@@ -47,7 +44,6 @@ data Valor
   | VEnum Id [Valor]
   | VRef (String, Id)
   | VEstrutura [(Id, Valor)]
-  | VRetorno Valor
   deriving (Eq)
 
 instance Show Valor where
@@ -94,7 +90,6 @@ getRaw nome = do
       Just (v:_) -> return v
       _ -> getRaw' es mem
   
-
 getValue :: Id -> EvalM Valor
 getValue nome = do
   scp <- gets escopo
