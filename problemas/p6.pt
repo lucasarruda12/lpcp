@@ -62,8 +62,36 @@ FUNCAO maximo(arv :: arvore, nivel :: Int) -> (Int, Int):
     FIM_FAÇA.
   FIM_CASAMENTO.
 FIM_FUNCAO.
+PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
+  SE:
+    NOT vazio(fila), FAÇA:
+      SE:
+        tamanho == 0, FAÇA:
+          IMPRIMA "---";
+          porNivel(fila, proximo, 0);
+        FIM_FAÇA.
+        tamanho > 0, FAÇA:
+          CASAMENTO fila[0]:
+            folha, FAÇA:
+              porNivel(cauda(fila), tamanho - 1, proximo);
+            FIM_FAÇA.
+            galho(t), FAÇA:
+              IMPRIMA t[1];
+              porNivel(anexar(anexar(cauda(fila), t[0]), t[2]), tamanho - 1, proximo + 2);
+            FIM_FAÇA.
+          FIM_CASAMENTO.
+        FIM_FAÇA.
+      FIM_SE.
+    FIM_FAÇA.
+    vazio(fila), FAÇA:
+    FIM_FAÇA.
+  FIM_SE.
+FIM_PROCEDIMENTO.
+
 IMPRIMA a;
 INICIALIZE m :: (Int, Int) COM minimo(a, 1);
 INICIALIZE mx :: (Int, Int) COM maximo(a, 1);
 IMPRIMA "Minimo: " + string(m[0]) + ", Nivel: " + string(m[1]);
 IMPRIMA "Maximo: " + string(mx[0]) + ", Nivel: " + string(mx[1]);
+INICIALIZE fila :: [arvore] COM [a];
+porNivel([a], 1, 0);

@@ -210,8 +210,28 @@ evalExpr (ELit l) = evalLit l
 evalExpr (EVar id) = getValue id
 evalExpr (ELeia p) = VString <$> liftIO getLine
 
-evalExpr (EChamada p ident args) = 
-  getFunc ident >>= (`evalFuncao` args)
+evalExpr (EChamada p ident@(IdR _ nome) args) = case nome of
+  -- metodos das listas!!
+  "vazio" -> do  
+    vs <- mapM evalExpr args
+    case vs of
+      [VList []] -> return (VBool True)
+      [VList _]  -> return (VBool False)
+      _          -> throwError $ TypeError p
+
+  "cauda" -> do
+    vs <- mapM evalExpr args
+    case vs of
+      [VList (_:xs)] -> return (VList xs)
+      _              -> throwError $ TypeError p
+
+  "anexar" -> do
+    vs <- mapM evalExpr args
+    case vs of
+      [VList xs, elem] -> return (VList (xs ++ [elem]))
+      _                -> throwError $ TypeError p
+
+  _ -> getFunc ident >>= (`evalFuncao` args)
 
 evalExpr (EIndice p container idx) = do
   containerVal <- evalExpr container

@@ -1,0 +1,5 @@
+INICIALIZE lista :: [Int] COM [1, 2, 3];
+IMPRIMA vazio(lista);
+IMPRIMA cauda(lista);
+INICIALIZE lista2 :: [Int] COM anexar(lista, 4);
+IMPRIMA lista2;
