@@ -90,6 +90,7 @@ tipoP = do
           "Real" -> return TReal
           "Bool" -> return TBool
           "String" -> return TString
+          "Nada" -> return TNada
           _ -> return (TId nome))
       <|> try tipoListaP
       <|> try tipoTuplaP

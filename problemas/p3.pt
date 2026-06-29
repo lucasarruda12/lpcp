@@ -1,24 +1,120 @@
-PROCEDIMENTO soma_matriz(m1 :: [[Int]], m2 :: [[Int]], i :: Int, j :: Int):
+FUNCAO obter_tamanho(l :: [Int]) -> Int:
+    INICIALIZE tamanho :: Int COM 0;
     ENQUANTO:
-        i < 3, FAÇA:
+        NOT vazio(l), FAÇA:
+            tamanho = tamanho + 1;
+            l = cauda(l);
+        FIM_FAÇA.
+    FIM_ENQUANTO.
+    RETORNE tamanho;
+FIM_FUNCAO.
+
+FUNCAO obter_linhas(m :: [[Int]]) -> Int:
+    RETORNE obter_tamanho(m);
+FIM_FUNCAO.
+
+FUNCAO obter_colunas(m :: [[Int]]) -> Int:
+    RETORNE obter_tamanho(m[0]);
+FIM_FUNCAO.
+
+FUNCAO mesmas_dimensoes(m1 :: [[Int]], m2 :: [[Int]]) -> Bool:
+    SE:
+        obter_linhas(m1) == obter_linhas(m2) AND obter_colunas(m1) == obter_colunas(m2), FAÇA:
+            RETORNE VERDADEIRO;
+        FIM_FAÇA.
+        VERDADEIRO, FAÇA:
+            RETORNE FALSO;
+        FIM_FAÇA.
+    FIM_SE.
+FIM_FUNCAO.
+
+
+PROCEDIMENTO soma_matriz(m1 :: [[Int]], m2 :: [[Int]]):
+    SE:
+        NOT mesmas_dimensoes(m1, m2), FAÇA:
+            IMPRIMA "As matrizes nao podem ser somadas.";
+            RETORNE NADA;
+        FIM_FAÇA.
+        VERDADEIRO, FAÇA:
+            IMPRIMA "Incializando soma.";
+        FIM_FAÇA.
+    FIM_SE.
+    INICIALIZE linhas :: Int COM obter_tamanho(m1);
+    INICIALIZE colunas :: Int COM obter_tamanho(m1[0]);
+    INICIALIZE i :: Int COM 0;
+    INICIALIZE j :: Int COM 0;
+
+    INICIALIZE resultado :: [[Int]] COM [];
+    INICIALIZE pivot :: [Int] COM [];
+    ENQUANTO:
+        i < linhas, FAÇA:
             ENQUANTO:
-                j < 3, FAÇA:
-                    IMPRIMA m1[i][j] + m2[i][j];
+                j < colunas, FAÇA:
+                    pivot = anexar(pivot, m1[i][j] + m2[i][j]);
                     j = j + 1;
-                    IMPRIMA "j = " + string(j);
                 FIM_FAÇA.
             FIM_ENQUANTO.
-            IMPRIMA "Saindo do enquanto.";
+            resultado = anexar(resultado, pivot);
+            pivot = [];
             j = 0;
             i = i + 1;
         FIM_FAÇA.
     FIM_ENQUANTO.
+    IMPRIMA resultado;
 FIM_PROCEDIMENTO.   
 
+PROCEDIMENTO produto_matriz(m1 :: [[Int]], m2 :: [[Int]]):
+    SE:
+        obter_colunas(m1) != obter_linhas(m2), FAÇA:
+            IMPRIMA "As matrizes nao podem ser multiplicadas.";
+            RETORNE NADA;
+        FIM_FAÇA.
+        VERDADEIRO, FAÇA:
+            IMPRIMA "Incializando produto.";
+        FIM_FAÇA.
+    FIM_SE.
+    INICIALIZE linhas :: Int COM obter_tamanho(m1);
+    INICIALIZE colunas :: Int COM obter_tamanho(m2[0]);
+    INICIALIZE i :: Int COM 0;
+    INICIALIZE j :: Int COM 0;
+    INICIALIZE k :: Int COM 0;
+
+    INICIALIZE resultado :: [[Int]] COM [];
+    INICIALIZE pivot :: [Int] COM [];
+    ENQUANTO:
+        i < linhas, FAÇA:
+            ENQUANTO:
+                j < colunas, FAÇA:
+                    INICIALIZE soma :: Int COM 0;
+                    ENQUANTO:
+                        k < obter_colunas(m1), FAÇA:
+                            soma = soma + m1[i][k] * m2[k][j];
+                            k = k + 1;
+                        FIM_FAÇA.
+                    FIM_ENQUANTO.
+                    pivot = anexar(pivot, soma);
+                    k = 0;
+                    j = j + 1;
+                FIM_FAÇA.
+            FIM_ENQUANTO.
+            resultado = anexar(resultado, pivot);
+            pivot = [];
+            j = 0;
+            i = i + 1;
+        FIM_FAÇA.
+    FIM_ENQUANTO.
+    IMPRIMA resultado;
+FIM_PROCEDIMENTO.
 
 INICIALIZE matriz1 :: [[Int]] COM [[2,2,1],[1,5,0],[0,0,1]];
 INICIALIZE matriz2 :: [[Int]] COM [[5,7,1],[0,3,0],[1,0,8]];
-INICIALIZE i :: Int COM 0;
-INICIALIZE j :: Int COM 0;
+INICIALIZE matriz3 :: [[Int]] COM [[1,2],[3,4],[5,6]];
+INICIALIZE matriz4 :: [[Int]] COM [[3,4,4],[6,5,3]];
 
-soma_matriz(matriz1, matriz2, i, j);
+soma_matriz(matriz1, matriz2);
+soma_matriz(matriz1, matriz3);
+
+produto_matriz(matriz1, matriz2);
+produto_matriz(matriz1, matriz3);
+produto_matriz(matriz3, matriz4);
+produto_matriz(matriz1, matriz4);
