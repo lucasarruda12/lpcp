@@ -1,25 +1,5 @@
-- Acho que tem um errinho no lexer: Ids com todas as letras maiúsculas não tão valendo.
+-- Erros do parser <- Pedro
 
-- Todos os nextPos do Parser estão errados
+-- Analisador de Semântica Estática <- Lucas, Israel
 
-- Coloquei array num canto aí no Repr.hs, depois tem que ver se o nome é array mesmo
-
-- Tipos estruturados: 
-  - Matrizes <- Pedro
-  - Enums (inclui resolver os conflitos de merge) <- Isreal
-  - Registro <- Pedro
-
-- Funções ainda nem existem <- Geraldo
-
-- Do jeito que os blocos estão implementados aqui acontece o seguinte:
-  - Se eu tenho um SE dentro de uma função recursiva, cada ativação desse SE vai ter um escopo diferente. Não acho que tem problema, só é estranho... :/
-
-evalComRetorno :: [Comando] -> EvalM ()
-evalComRetorno (Retorno:cmds) = pure ()
-evalComRetorno se@(SeCmd _ _):cmds = evalComRertorno se *> evalComRetorno cmds
-evalComRetorno enquanto@(Enquanto _ _):cmds = evalComRertorno enquanto *> evalComRetorno cmds
-evalComRetorno cmd:cmds = eval cmd *> evalComRetorno cmds
-evalComRetorno [] = pure ()
-
-- Adicionar concatenaçao de Strings
-- Resolver o problema 6D
+-- Pegar todos os erros do interpretador! <- Geraldo
