@@ -91,6 +91,7 @@ tipoP = do
           "Bool" -> return TBool
           "String" -> return TString
           "Nada" -> return TNada
+          "Qualquer" -> return TQualquer
           _ -> return (TId nome))
       <|> try tipoListaP
       <|> try tipoTuplaP
