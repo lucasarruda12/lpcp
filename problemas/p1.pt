@@ -1,6 +1,6 @@
-INICIALIZE x :: Float COM 6;
-INICIALIZE y :: Float COM 15;
+INICIALIZE x :: Float COM 6.0;
+INICIALIZE y :: Float COM 15.0;
 INICIALIZE c :: Int COM 3;
 
-IMPRIMA x**2 - y + c;
+IMPRIMA x**2.0 - y + float(c);
 

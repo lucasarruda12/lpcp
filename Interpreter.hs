@@ -2,6 +2,7 @@ module Interpreter (run) where
 
 import Control.Monad.State
 import Control.Monad.Except
+import Control.Monad
 import qualified Data.Map as Map
 
 import Interpreter.Basic
@@ -21,11 +22,11 @@ evalPrograma (Programa ps fs ens es cs) = do
   evalCmds cs
   pure ()
 
-run :: Programa -> IO ()
-run p = do
+run :: Programa -> Bool -> IO ()
+run p debug = do
   let m = evalPrograma p
   (result, ambiente) <- runStateT (runExceptT m) ambienteVazio
   case result of
     Left err -> print err
     Right _ -> pure ()
-  print ambiente
+  when debug (print ambiente)
