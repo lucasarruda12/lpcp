@@ -228,10 +228,8 @@ chequeComando cmd =
               (ErroDeTipoAttr (nome, t) (show e, rtipo))
             else declVar nome p ltipo
         _ -> 
-          if ltipo /= rtipo -- <- o tipo de e é igual ao tipo da variável que eu to inicializando?
-            then throwError -- Se não for: erro de tipo.a
-              (ErroDeTipoAttr (nome, ltipo) (show e, rtipo))
-            else declVar nome p ltipo -- Se for, adiciona a variável com esse nome e esse tipo lá na tabela de símbolos
+          chequeTipos ltipo rtipo
+          >> declVar nome p ltipo -- Se for, adiciona a variável com esse nome e esse tipo lá na tabela de símbolos
 
     (Declaracao p (IdR _ nome) tipo) ->
       declVar nome p tipo
