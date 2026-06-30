@@ -38,6 +38,8 @@ data ErroSemanticaEstatica
   | NaoDeclarado String
   | NaoDefinido Tipo
   | JaDefinido String Pos
+  | TipoNaoIndexavel Tipo
+  | CampoNaoExiste Tipo Id
   | Contexto String ErroSemanticaEstatica
 
 instance Show ErroSemanticaEstatica where
@@ -49,6 +51,8 @@ instance Show ErroSemanticaEstatica where
   show (NaoDefinido t) = "O tipo" +-+ show t +-+ "não foi definido"
   show (JaDefinido nome pos) = nome +-+ "já foi definido em" +-+ show pos
   show (Contexto c err) = c ++ "\n>" +-+ show err
+  show (TipoNaoIndexavel t) = "O tipo" +-+ show t +-+ "não é indexável"
+  show (CampoNaoExiste t ident) = "O campo" +-+ show ident +-+ "não existe em" +-+ show t
 
 primitivo :: Tipo -> Bool
 primitivo = 
@@ -142,8 +146,8 @@ addEnum (EnumDecl p ident variantes) = do
 
   where
     maybeToNada :: VarianteEnum -> (Id, Tipo)
-    maybeToNada (VarianteEnum ident mt) = 
-      (ident, fromMaybe TNada mt)
+    maybeToNada (VarianteEnum i mt) = 
+      (i, fromMaybe TNada mt)
 
 addEstrutura :: EstruturaDecl -> CheqM ()
 addEstrutura (EstruturaDecl p ident campos) = do
@@ -223,8 +227,8 @@ chequeComando cmd =
     (Declaracao p (IdR _ nome) tipo) ->
       declVar nome p tipo
 
-    (Atribuicao _ (AId (IdR _ lnome)) rvalue) ->
-      chequeAtribuicao lnome rvalue
+    (Atribuicao _ atribuendo rvalue) ->
+      chequeAtribuicao atribuendo rvalue
 
     -- Unidade de Comandos de Condicionais (UNC) :D
     (EnquantoCmd _ uncs) -> comEscopo
@@ -244,12 +248,24 @@ chequeComando cmd =
 
     (CasamentoCmd _ noivo bracos) -> do
       noivoTipo <- chequeExpr noivo 
-      undefined 
+      case noivoTipo of
+        (TId _) -> mapM_ (chequeBraco noivoTipo) bracos
+        _ -> throwError (TipoNaoIndexavel noivoTipo)
 
-chequeBraco :: (Padrao, [Comando]) -> CheqM ()
-chequeBraco (Padrao variante captura, cmds) = undefined
-
-
+chequeBraco :: Tipo -> (Padrao, [Comando]) -> CheqM ()
+chequeBraco t (Padrao variante mcaptura, cmds) = do
+  definidos <- gets es
+  case Map.lookup t definidos of
+    Just (_, variantes) ->
+      case lookup variante variantes of
+        Just t2 -> comEscopo $ do
+          case mcaptura of
+            Just (IdR p captura) -> declVar captura p t2
+            Nothing -> pure ()
+          mapM_ chequeComando cmds
+        Nothing -> 
+          throwError (CampoNaoExiste t variante)
+    Nothing -> throwError (TipoNaoIndexavel t)
 
 chequeChamadaCmd :: String -> [Expr] -> CheqM ()
 chequeChamadaCmd nome attrs = do
@@ -260,11 +276,43 @@ chequeChamadaCmd nome attrs = do
     (throwError (NumeroIncorretoDeParametros l1 l2))
   mapM_ (uncurry chequeTipos) (zip pars attrs')
 
-chequeAtribuicao :: String -> Expr -> CheqM ()
-chequeAtribuicao lnome rvalue = do
-  ltipo <- getVar lnome
+chequeAtribuicao :: Atribuendo -> Expr -> CheqM ()
+chequeAtribuicao atribuendo rvalue = do
   rtipo <- chequeExpr rvalue
-  void (chequeTipos ltipo rtipo)
+  case atribuendo of
+    (AId (IdR _ nome)) -> void $
+      getVar nome >>= (`chequeTipos` rtipo)
+
+    (AArray (IdR _ nome) idx) -> do
+      ltipo <- getVar nome
+      case ltipo of
+        (TList t) -> void $
+          chequeExpr idx >>= chequeTipos TInt
+          >> chequeTipos t rtipo
+        (TTuple _) -> void $
+          chequeExpr idx >>= chequeTipos TInt
+        (TDict ct vt) -> void $
+          chequeExpr idx >>= chequeTipos ct
+          >> chequeTipos vt rtipo
+        _ -> throwError (TipoNaoIndexavel ltipo)
+
+    -- Esse tá difícil de entender, mas com calma vai!
+    (AEstrutura (IdR _ nome) campo) -> do
+      ltipo <- getVar nome
+      estruturas <- gets es
+      case ltipo of
+        (TId _) ->
+          case Map.lookup ltipo estruturas of
+            Nothing -> throwError (TipoNaoIndexavel ltipo)
+
+            Just (_, campos) -> 
+              case lookup campo campos of
+                Just campoTipo -> void $ 
+                  chequeTipos campoTipo rtipo
+
+                Nothing -> throwError (CampoNaoExiste ltipo campo)
+        _ -> 
+          throwError (TipoNaoIndexavel ltipo)
 
 chequeUnc :: (Expr, [Comando]) -> CheqM ()
 chequeUnc (e, cmds) = do
@@ -352,7 +400,6 @@ chequeUnOp op t = do
       then return t2
       else throwError (ErroDeTipo t2 t)
 
-
 chequeOpBin :: OpBin -> Tipo -> Tipo -> CheqM Tipo
 chequeOpBin op t1 t2 = do
   let tipos_nums = all numerico [t1, t2]
@@ -419,17 +466,16 @@ getVar nome = do
       Nothing -> getVar' nome vs
     getVar' nome' [] = throwError (NaoDeclarado nome')
 
-
 getFuncao :: String -> CheqM (Pos, [Tipo], Tipo)
 getFuncao nome = do
   definidos <- gets fs
   case Map.lookup nome definidos of
-    Just (p, tipos, tipo) -> return (p, tipos, tipo)
+    Just (p, pars, tipo) -> return (p, pars, tipo)
     Nothing -> throwError (NaoDeclarado nome)
 
 getProcedimento :: String -> CheqM (Pos, [Tipo])
 getProcedimento nome = do
   definidos <- gets ps
   case Map.lookup nome definidos of
-    Just (p, tipos) -> return (p, tipos)
+    Just (p, ts) -> return (p, ts)
     Nothing -> throwError (NaoDeclarado nome)
