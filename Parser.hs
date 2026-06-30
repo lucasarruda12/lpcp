@@ -165,7 +165,6 @@ comandoP =
       atribuendoP :: Parser Atribuendo
       atribuendoP =
          try (AArray <$> idP <*> exprP)
-        <|> try (ARef <$> idP <* tokenP Vezes)
         <|> try (do
           nome <- idP
           _ <- tokenP Ponto

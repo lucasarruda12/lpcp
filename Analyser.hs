@@ -67,8 +67,6 @@ data TabelaDeSimbolos = TS
   , es :: Map.Map Tipo (Pos, [(Id, Tipo)])
   }
 
-
-
 tabelaVazia :: TabelaDeSimbolos
 tabelaVazia = TS
   { ps = Map.empty
