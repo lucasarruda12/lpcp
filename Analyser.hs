@@ -60,11 +60,16 @@ data TabelaDeSimbolos = TS
   { ps :: Map.Map String (Pos, [Tipo])
   , fs :: Map.Map String (Pos, [Tipo], Tipo)
   , variaveis :: [Map.Map String (Pos, Tipo)]
-  , tipos :: Set.Set Tipo
+  , tipos :: Map.Map Tipo (Maybe Pos)
   }
 
 tabelaVazia :: TabelaDeSimbolos
-tabelaVazia = TS Map.empty Map.empty [Map.empty] primitivos
+tabelaVazia = TS
+  { ps = Map.empty
+  , fs = Map.empty
+  , variaveis = [Map.empty]
+  , tipos = Map.fromList $ (,Nothing) <$> Set.toList primitivos
+  }
 
 analiseEstatica :: Programa -> Maybe String
 analiseEstatica p = case runState (runExceptT (cheque p)) tabelaVazia of
@@ -77,38 +82,62 @@ type CheqM a = ExceptT ErroSemanticaEstatica (State TabelaDeSimbolos) a
 -- Checar o escopo externo inclui adicionar as variáveis deles na tabela de símbolos. Isso tem que acontecer antes de checar os procedimentos.
 cheque :: Programa -> CheqM ()
 cheque (Programa ps fs ens es cmds) = do
+  mapM_ (\(EnumDecl p ident _) -> addTipo p ident) ens
+  mapM_ (\(EstruturaDecl p ident _) -> addTipo p ident) es
   mapM_ addProcedimento ps -- Adiciona todos os procedimentos na tabela de símbolos
-  mapM_ addFuncao fs -- Adiciona as funções?
+  mapM_ addFuncao fs -- Adiciona as funções
   mapM_ chequeComando cmds -- Checa o escopo externo
   mapM_ chequeProcedimento ps -- Checa os procedimentos
-  mapM_ chequeFuncao fs -- Checa as funções?
+  mapM_ chequeFuncao fs -- Checa as funções
 
 addFuncao :: FuncaoR -> CheqM ()
 addFuncao f@(FuncaoR pos (IdR _ nome) pars tipo _)
   = comContexto f $ do
-    declaradas <- gets fs
-    when (Map.member nome declaradas)
-      (throwError (JaDefinido nome pos))
+    definidas <- gets fs
+    case Map.lookup nome definidas of
+      Just (p', _, _) -> throwError (JaDefinido nome pos)
+      Nothing -> pure ()
     pars' <- mapM chequeParametro pars
     _ <- chequeTipo tipo
     modify $ \ts
-      -> ts { fs = Map.insert nome (pos, pars', tipo) declaradas }
+      -> ts { fs = Map.insert nome (pos, pars', tipo) definidas }
 
 addProcedimento :: ProcedimentoR -> CheqM ()
 addProcedimento p@(ProcedimentoR pos (IdR _ nome) pars _)
   = comContexto p $ do
-    declarados <- gets ps
-    when (Map.member nome declarados)
-      (throwError (JaDefinido nome pos))
+    definidos <- gets ps
+    case Map.lookup nome definidos of
+      Just (p', _) -> throwError (JaDefinido nome p')
+      Nothing -> pure()
     pars' <- mapM chequeParametro pars
     modify $ \ts
-      -> ts { ps = Map.insert nome (pos, pars') declarados }
+      -> ts { ps = Map.insert nome (pos, pars') definidos }
+
+
+addTipo :: Pos -> Id -> CheqM ()
+addTipo p ident = do
+  let (IdR _ nome) = ident
+  let novoTipo = TId ident
+  definidos <- gets tipos
+  case Map.lookup novoTipo definidos of
+    Just (Just p') -> throwError (JaDefinido nome p')
+    Just Nothing
+      -> error' "Encontrei um tipo nomeado com o mesmo nome de um tipo primitivo. O lexer não deveria deixar isso acontecer."
+    Nothing -> pure ()
+  modify $ \ts
+    -> ts { tipos = Map.insert novoTipo (Just p) definidos }
 
 chequeTipo :: Tipo -> CheqM ()
 chequeTipo tipo = do
-  definidos <- gets tipos
-  unless (Set.member tipo definidos)
-    (throwError (NaoDefinido tipo))
+  case tipo of
+    TList interno -> chequeTipo interno
+    TTuple internos -> mapM_ chequeTipo internos
+    TDict chave valor -> mapM_ chequeTipo [chave, valor]
+    TMatrix interno _ _ -> chequeTipo interno
+    _ -> do
+      definidos <- gets tipos
+      unless (Map.member tipo definidos)
+        (throwError (NaoDefinido tipo))
 
 chequeParametro :: Parametro -> CheqM Tipo
 chequeParametro (Parametro _ tipo _)
