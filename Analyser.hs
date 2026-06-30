@@ -64,7 +64,7 @@ numerico =
 
 data TabelaDeSimbolos = TS
   { ps :: Map.Map String (Pos, [Tipo])
-  , fs :: Map.Map String (Pos, [Tipo], Tipo)
+  , fs :: Map.Map String (Maybe Pos, [Tipo], Tipo)
   , variaveis :: [Map.Map String (Pos, Tipo)]
   -- Essa parte ficou bastante cheia de informacao:
   , ens :: Map.Map Tipo (Pos, [(Id, Tipo)])
@@ -74,11 +74,14 @@ data TabelaDeSimbolos = TS
 tabelaVazia :: TabelaDeSimbolos
 tabelaVazia = TS
   { ps = Map.empty
-  , fs = Map.empty
+  , fs = Map.fromList 
+    [ ("vazio", (Nothing, [TList TQualquer], TBool))
+    , ("cauda", (Nothing, [TList TQualquer], TList TQualquer))
+    , ("anexar", (Nothing, [TList TQualquer, TList TQualquer], TList TQualquer))
+    ]
   , variaveis = [Map.empty]
   , ens = Map.empty
   , es = Map.empty
-  -- , tipos = Map.fromList $ (, (Nothing, [])) <$> 
   }
 
 tipos :: TabelaDeSimbolos -> Map.Map Tipo (Maybe Pos)
@@ -112,12 +115,13 @@ addFuncao f@(FuncaoR pos (IdR _ nome) pars tipo _)
   = comContexto f $ do
     definidas <- gets fs
     case Map.lookup nome definidas of
-      Just (p', _, _) -> throwError (JaDefinido nome p')
+      Just (Just p', _, _) -> throwError (JaDefinido nome p')
+      Just (Nothing, _, _) -> throwError (JaDefinido nome base)
       Nothing -> pure ()
     pars' <- mapM chequeParametro pars
     _ <- chequeTipo tipo
     modify $ \ts
-      -> ts { fs = Map.insert nome (pos, pars', tipo) definidas }
+      -> ts { fs = Map.insert nome (Just pos, pars', tipo) definidas }
 
 addProcedimento :: ProcedimentoR -> CheqM ()
 addProcedimento p@(ProcedimentoR pos (IdR _ nome) pars _)
@@ -175,6 +179,11 @@ chequeTipo tipo = do
         (throwError (NaoDefinido tipo))
 
 chequeTipos :: Tipo -> Tipo -> CheqM Tipo
+chequeTipos (TList t1) (TList t2) = chequeTipos t1 t2
+chequeTipos (TDict tc tv) (TDict tc' tv') 
+  = TDict <$> chequeTipos tc tc' <*> chequeTipos tv tv'
+chequeTipos (TTuple ts) (TTuple ts') = 
+  TTuple <$> zipWithM chequeTipos ts ts'
 chequeTipos t1 t2 = do
   chequeTipo t1 -- checo se os dois existem
   chequeTipo t2
@@ -470,7 +479,8 @@ getFuncao :: String -> CheqM (Pos, [Tipo], Tipo)
 getFuncao nome = do
   definidos <- gets fs
   case Map.lookup nome definidos of
-    Just (p, pars, tipo) -> return (p, pars, tipo)
+    Just (Just p, pars, tipo) -> return (p, pars, tipo)
+    Just (Nothing, pars, tipo) -> return (base, pars, tipo)
     Nothing -> throwError (NaoDeclarado nome)
 
 getProcedimento :: String -> CheqM (Pos, [Tipo])

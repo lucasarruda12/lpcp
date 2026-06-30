@@ -6,6 +6,9 @@ import Data.List (intercalate)
 newtype Pos = Pos AlexPosn
   deriving (Eq, Ord)
 
+base :: Pos
+base = Pos $ AlexPn 0 0 0
+
 instance Show Pos where
   show (Pos (AlexPn _ l c)) = "[l" ++ show l ++ ":c" ++ show c ++ "]"
 
