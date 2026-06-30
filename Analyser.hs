@@ -5,6 +5,7 @@ import Control.Monad
 import Data.Functor
 import Control.Monad.Except
 import Control.Monad.State
+import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -61,16 +62,29 @@ data TabelaDeSimbolos = TS
   { ps :: Map.Map String (Pos, [Tipo])
   , fs :: Map.Map String (Pos, [Tipo], Tipo)
   , variaveis :: [Map.Map String (Pos, Tipo)]
-  , tipos :: Map.Map Tipo (Maybe Pos)
+  -- Essa parte ficou bastante cheia de informacao:
+  , ens :: Map.Map Tipo (Pos, [(Id, Tipo)])
+  , es :: Map.Map Tipo (Pos, [(Id, Tipo)])
   }
+
+
 
 tabelaVazia :: TabelaDeSimbolos
 tabelaVazia = TS
   { ps = Map.empty
   , fs = Map.empty
   , variaveis = [Map.empty]
-  , tipos = Map.fromList $ (,Nothing) <$> [TInt, TFloat, TReal, TString, TBool, TNada, TQualquer]
+  , ens = Map.empty
+  , es = Map.empty
+  -- , tipos = Map.fromList $ (, (Nothing, [])) <$> 
   }
+
+tipos :: TabelaDeSimbolos -> Map.Map Tipo (Maybe Pos)
+tipos ts = Map.unions [declEs, declEns, primitivos]
+  where
+    declEs = Map.map (\(p, _) -> Just p) (es ts)
+    declEns = Map.map (\(p, _) -> Just p) (ens ts)
+    primitivos = Map.fromList $ (, Nothing) <$> [TInt, TFloat, TReal, TString, TBool, TNada, TQualquer]
 
 analiseEstatica :: Programa -> Maybe String
 analiseEstatica p = case runState (runExceptT (cheque p)) tabelaVazia of
@@ -83,8 +97,8 @@ type CheqM a = ExceptT ErroSemanticaEstatica (State TabelaDeSimbolos) a
 -- Checar o escopo externo inclui adicionar as variáveis deles na tabela de símbolos. Isso tem que acontecer antes de checar os procedimentos.
 cheque :: Programa -> CheqM ()
 cheque (Programa ps fs ens es cmds) = do
-  mapM_ (\(EnumDecl p ident _) -> addTipo p ident) ens
-  mapM_ (\(EstruturaDecl p ident _) -> addTipo p ident) es
+  mapM_ addEnum ens
+  mapM_ addEstrutura es
   mapM_ addProcedimento ps -- Adiciona todos os procedimentos na tabela de símbolos
   mapM_ addFuncao fs -- Adiciona as funções
   mapM_ chequeComando cmds -- Checa o escopo externo
@@ -114,19 +128,38 @@ addProcedimento p@(ProcedimentoR pos (IdR _ nome) pars _)
     modify $ \ts
       -> ts { ps = Map.insert nome (pos, pars') definidos }
 
-addTipo :: Pos -> Id -> CheqM ()
-addTipo p ident = do
+addEnum :: EnumDecl -> CheqM ()
+addEnum (EnumDecl p ident variantes) = do
+  let (IdR _ nome) = ident
+  let novoTipo = TId ident
+  let variantes' = map maybeToNada variantes
+  definidos <- gets tipos
+  case Map.lookup novoTipo definidos of
+    Just (Just p') -> throwError (JaDefinido nome p')
+    Just Nothing 
+      -> error' "Encontrei um tipo nomeado com o mesmo nome de um tipo primitivo. O lexer não deveria deixar isso acontecer."
+    Nothing -> pure ()
+  modify $ \ts
+    -> ts { ens = Map.insert novoTipo (p, variantes') (ens ts) }
+
+  where
+    maybeToNada :: VarianteEnum -> (Id, Tipo)
+    maybeToNada (VarianteEnum ident mt) = 
+      (ident, fromMaybe TNada mt)
+
+addEstrutura :: EstruturaDecl -> CheqM ()
+addEstrutura (EstruturaDecl p ident campos) = do
   let (IdR _ nome) = ident
   let novoTipo = TId ident
   definidos <- gets tipos
   case Map.lookup novoTipo definidos of
     Just (Just p') -> throwError (JaDefinido nome p')
-    Just Nothing
+    Just Nothing 
       -> error' "Encontrei um tipo nomeado com o mesmo nome de um tipo primitivo. O lexer não deveria deixar isso acontecer."
     Nothing -> pure ()
   modify $ \ts
-    -> ts { tipos = Map.insert novoTipo (Just p) definidos }
-
+    -> ts { es = Map.insert novoTipo (p, campos) (es ts) }
+  
 chequeTipo :: Tipo -> CheqM ()
 chequeTipo tipo = do
   case tipo of
@@ -138,6 +171,16 @@ chequeTipo tipo = do
       definidos <- gets tipos
       unless (Map.member tipo definidos)
         (throwError (NaoDefinido tipo))
+
+chequeTipos :: Tipo -> Tipo -> CheqM Tipo
+chequeTipos t1 t2 = do
+  chequeTipo t1 -- checo se os dois existem
+  chequeTipo t2
+  case (t1, t2) of
+    (TQualquer, _)  -> pure t2
+    (_, TQualquer)  -> pure t1
+    _ | t1 == t2    -> pure t1
+    _ | otherwise   -> throwError (ErroDeTipo t1 t2)
 
 chequeParametro :: Parametro -> CheqM Tipo
 chequeParametro (Parametro _ tipo _)
@@ -311,12 +354,6 @@ chequeUnOp op t = do
       then return t2
       else throwError (ErroDeTipo t2 t)
 
-chequeTipos :: Tipo -> Tipo -> CheqM Tipo
-chequeTipos t1 t2 = case (t1, t2) of
-  (TQualquer, _)  -> pure t2
-  (_, TQualquer)  -> pure t1
-  _ | t1 == t2    -> pure t1
-  _ | otherwise   -> throwError (ErroDeTipo t1 t2)
 
 chequeOpBin :: OpBin -> Tipo -> Tipo -> CheqM Tipo
 chequeOpBin op t1 t2 = do
