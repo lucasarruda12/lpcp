@@ -5,6 +5,7 @@ import Control.Monad
 import Data.Functor
 import Control.Monad.Except
 import Control.Monad.State
+import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
@@ -37,6 +38,8 @@ data ErroSemanticaEstatica
   | NaoDeclarado String
   | NaoDefinido Tipo
   | JaDefinido String Pos
+  | TipoNaoIndexavel Tipo
+  | CampoNaoExiste Tipo Id
   | Contexto String ErroSemanticaEstatica
 
 instance Show ErroSemanticaEstatica where
@@ -48,19 +51,24 @@ instance Show ErroSemanticaEstatica where
   show (NaoDefinido t) = "O tipo" +-+ show t +-+ "não foi definido"
   show (JaDefinido nome pos) = nome +-+ "já foi definido em" +-+ show pos
   show (Contexto c err) = c ++ "\n>" +-+ show err
+  show (TipoNaoIndexavel t) = "O tipo" +-+ show t +-+ "não é indexável"
+  show (CampoNaoExiste t ident) = "O campo" +-+ show ident +-+ "não existe em" +-+ show t
 
+primitivo :: Tipo -> Bool
+primitivo = 
+  (`Set.member` Set.fromList [TInt, TFloat, TReal, TString, TBool, TNada, TQualquer])
 
-primitivos :: Set.Set Tipo
-primitivos = Set.fromList [TInt, TFloat, TReal, TString, TBool, TNada]
-
-numericos :: Set.Set Tipo
-numericos = Set.fromList [TInt, TFloat, TReal]
+numerico :: Tipo -> Bool
+numerico = 
+  (`Set.member` Set.fromList [TInt, TFloat, TReal])
 
 data TabelaDeSimbolos = TS
   { ps :: Map.Map String (Pos, [Tipo])
   , fs :: Map.Map String (Pos, [Tipo], Tipo)
   , variaveis :: [Map.Map String (Pos, Tipo)]
-  , tipos :: Map.Map Tipo (Maybe Pos)
+  -- Essa parte ficou bastante cheia de informacao:
+  , ens :: Map.Map Tipo (Pos, [(Id, Tipo)])
+  , es :: Map.Map Tipo (Pos, [(Id, Tipo)])
   }
 
 tabelaVazia :: TabelaDeSimbolos
@@ -68,8 +76,17 @@ tabelaVazia = TS
   { ps = Map.empty
   , fs = Map.empty
   , variaveis = [Map.empty]
-  , tipos = Map.fromList $ (,Nothing) <$> Set.toList primitivos
+  , ens = Map.empty
+  , es = Map.empty
+  -- , tipos = Map.fromList $ (, (Nothing, [])) <$> 
   }
+
+tipos :: TabelaDeSimbolos -> Map.Map Tipo (Maybe Pos)
+tipos ts = Map.unions [declEs, declEns, primitivos]
+  where
+    declEs = Map.map (\(p, _) -> Just p) (es ts)
+    declEns = Map.map (\(p, _) -> Just p) (ens ts)
+    primitivos = Map.fromList $ (, Nothing) <$> [TInt, TFloat, TReal, TString, TBool, TNada, TQualquer]
 
 analiseEstatica :: Programa -> Maybe String
 analiseEstatica p = case runState (runExceptT (cheque p)) tabelaVazia of
@@ -82,8 +99,8 @@ type CheqM a = ExceptT ErroSemanticaEstatica (State TabelaDeSimbolos) a
 -- Checar o escopo externo inclui adicionar as variáveis deles na tabela de símbolos. Isso tem que acontecer antes de checar os procedimentos.
 cheque :: Programa -> CheqM ()
 cheque (Programa ps fs ens es cmds) = do
-  mapM_ (\(EnumDecl p ident _) -> addTipo p ident) ens
-  mapM_ (\(EstruturaDecl p ident _) -> addTipo p ident) es
+  mapM_ addEnum ens
+  mapM_ addEstrutura es
   mapM_ addProcedimento ps -- Adiciona todos os procedimentos na tabela de símbolos
   mapM_ addFuncao fs -- Adiciona as funções
   mapM_ chequeComando cmds -- Checa o escopo externo
@@ -113,20 +130,38 @@ addProcedimento p@(ProcedimentoR pos (IdR _ nome) pars _)
     modify $ \ts
       -> ts { ps = Map.insert nome (pos, pars') definidos }
 
+addEnum :: EnumDecl -> CheqM ()
+addEnum (EnumDecl p ident variantes) = do
+  let (IdR _ nome) = ident
+  let novoTipo = TId ident
+  let variantes' = map maybeToNada variantes
+  definidos <- gets tipos
+  case Map.lookup novoTipo definidos of
+    Just (Just p') -> throwError (JaDefinido nome p')
+    Just Nothing 
+      -> error' "Encontrei um tipo nomeado com o mesmo nome de um tipo primitivo. O lexer não deveria deixar isso acontecer."
+    Nothing -> pure ()
+  modify $ \ts
+    -> ts { ens = Map.insert novoTipo (p, variantes') (ens ts) }
 
-addTipo :: Pos -> Id -> CheqM ()
-addTipo p ident = do
+  where
+    maybeToNada :: VarianteEnum -> (Id, Tipo)
+    maybeToNada (VarianteEnum i mt) = 
+      (i, fromMaybe TNada mt)
+
+addEstrutura :: EstruturaDecl -> CheqM ()
+addEstrutura (EstruturaDecl p ident campos) = do
   let (IdR _ nome) = ident
   let novoTipo = TId ident
   definidos <- gets tipos
   case Map.lookup novoTipo definidos of
     Just (Just p') -> throwError (JaDefinido nome p')
-    Just Nothing
+    Just Nothing 
       -> error' "Encontrei um tipo nomeado com o mesmo nome de um tipo primitivo. O lexer não deveria deixar isso acontecer."
     Nothing -> pure ()
   modify $ \ts
-    -> ts { tipos = Map.insert novoTipo (Just p) definidos }
-
+    -> ts { es = Map.insert novoTipo (p, campos) (es ts) }
+  
 chequeTipo :: Tipo -> CheqM ()
 chequeTipo tipo = do
   case tipo of
@@ -138,6 +173,16 @@ chequeTipo tipo = do
       definidos <- gets tipos
       unless (Map.member tipo definidos)
         (throwError (NaoDefinido tipo))
+
+chequeTipos :: Tipo -> Tipo -> CheqM Tipo
+chequeTipos t1 t2 = do
+  chequeTipo t1 -- checo se os dois existem
+  chequeTipo t2
+  case (t1, t2) of
+    (TQualquer, _)  -> pure t2
+    (_, TQualquer)  -> pure t1
+    _ | t1 == t2    -> pure t1
+    _ | otherwise   -> throwError (ErroDeTipo t1 t2)
 
 chequeParametro :: Parametro -> CheqM Tipo
 chequeParametro (Parametro _ tipo _)
@@ -182,8 +227,8 @@ chequeComando cmd =
     (Declaracao p (IdR _ nome) tipo) ->
       declVar nome p tipo
 
-    (Atribuicao _ (AId (IdR _ lnome)) rvalue) ->
-      chequeAtribuicao lnome rvalue
+    (Atribuicao _ atribuendo rvalue) ->
+      chequeAtribuicao atribuendo rvalue
 
     -- Unidade de Comandos de Condicionais (UNC) :D
     (EnquantoCmd _ uncs) -> comEscopo
@@ -199,36 +244,75 @@ chequeComando cmd =
       void (chequeExpr e)
 
     (ChamadaCmd _ (IdR _ nome) attrs) ->
-      void (chequeChamadaCmd nome attrs)
+      chequeChamadaCmd nome attrs
 
     (CasamentoCmd _ noivo bracos) -> do
       noivoTipo <- chequeExpr noivo 
-      undefined 
+      case noivoTipo of
+        (TId _) -> mapM_ (chequeBraco noivoTipo) bracos
+        _ -> throwError (TipoNaoIndexavel noivoTipo)
 
-chequeBraco :: (Padrao, [Comando]) -> CheqM ()
-chequeBraco (Padrao ident ident', cmds) = undefined
+chequeBraco :: Tipo -> (Padrao, [Comando]) -> CheqM ()
+chequeBraco t (Padrao variante mcaptura, cmds) = do
+  definidos <- gets es
+  case Map.lookup t definidos of
+    Just (_, variantes) ->
+      case lookup variante variantes of
+        Just t2 -> comEscopo $ do
+          case mcaptura of
+            Just (IdR p captura) -> declVar captura p t2
+            Nothing -> pure ()
+          mapM_ chequeComando cmds
+        Nothing -> 
+          throwError (CampoNaoExiste t variante)
+    Nothing -> throwError (TipoNaoIndexavel t)
 
-chequeChamadaCmd :: String -> [Expr] -> CheqM Tipo
+chequeChamadaCmd :: String -> [Expr] -> CheqM ()
 chequeChamadaCmd nome attrs = do
   (_, pars) <- getProcedimento nome
   attrs' <- mapM chequeExpr attrs
   let (l1, l2) = (length pars, length attrs')
   unless (l1 == l2)
     (throwError (NumeroIncorretoDeParametros l1 l2))
-  mapM_ chequeTipos (zip pars attrs')
-  return TNada
-  where
-    chequeTipos :: (Tipo, Tipo) -> CheqM ()
-    chequeTipos (t1, t2) =
-      unless (t1 == t2)
-        (throwError (ErroDeTipo t1 t2))
+  mapM_ (uncurry chequeTipos) (zip pars attrs')
 
-chequeAtribuicao :: String -> Expr -> CheqM ()
-chequeAtribuicao lnome rvalue = do
-  ltipo <- getVar lnome
+chequeAtribuicao :: Atribuendo -> Expr -> CheqM ()
+chequeAtribuicao atribuendo rvalue = do
   rtipo <- chequeExpr rvalue
-  unless (ltipo == rtipo)
-    (throwError $ ErroDeTipo ltipo rtipo)
+  case atribuendo of
+    (AId (IdR _ nome)) -> void $
+      getVar nome >>= (`chequeTipos` rtipo)
+
+    (AArray (IdR _ nome) idx) -> do
+      ltipo <- getVar nome
+      case ltipo of
+        (TList t) -> void $
+          chequeExpr idx >>= chequeTipos TInt
+          >> chequeTipos t rtipo
+        (TTuple _) -> void $
+          chequeExpr idx >>= chequeTipos TInt
+        (TDict ct vt) -> void $
+          chequeExpr idx >>= chequeTipos ct
+          >> chequeTipos vt rtipo
+        _ -> throwError (TipoNaoIndexavel ltipo)
+
+    -- Esse tá difícil de entender, mas com calma vai!
+    (AEstrutura (IdR _ nome) campo) -> do
+      ltipo <- getVar nome
+      estruturas <- gets es
+      case ltipo of
+        (TId _) ->
+          case Map.lookup ltipo estruturas of
+            Nothing -> throwError (TipoNaoIndexavel ltipo)
+
+            Just (_, campos) -> 
+              case lookup campo campos of
+                Just campoTipo -> void $ 
+                  chequeTipos campoTipo rtipo
+
+                Nothing -> throwError (CampoNaoExiste ltipo campo)
+        _ -> 
+          throwError (TipoNaoIndexavel ltipo)
 
 chequeUnc :: (Expr, [Comando]) -> CheqM ()
 chequeUnc (e, cmds) = do
@@ -252,6 +336,33 @@ chequeExpr' (ELit l) = case l of
   LReal _ _ -> pure TReal
   LNada _  -> pure TNada
 
+chequeExpr' (EList _ []) = pure (TList TQualquer)
+chequeExpr' (EList _ [e]) = TList <$> chequeExpr' e
+chequeExpr' (EList p (e:es)) = do
+  t1 <- chequeExpr' e
+  tlist <- chequeExpr' (EList p es)
+  _ <- case tlist of
+    TList t2 -> chequeTipos t2 t1
+    _ -> 
+      error' "chequeExpr' (EList) retornou algo diferente de TList"
+  return (TList t1)
+
+chequeExpr' (EDict _ []) = pure (TDict TQualquer TQualquer)
+chequeExpr' (EDict _ [(c, v)]) 
+  = TDict <$> chequeExpr' c <*> chequeExpr' v
+chequeExpr' (EDict p ((c, v):cvs)) = do
+  tc <- chequeExpr' c
+  tv <- chequeExpr' v
+  tdict <- chequeExpr' (EDict p cvs)
+  case tdict of
+    TDict tc' tv' -> 
+      chequeTipos tc' tc
+      >> chequeTipos tv' tv
+    _ ->
+      error' "chequeExpr' (EDict) retornou algo diferente de TDict"
+
+-- chequeExpr' (EIndice _ 
+
 chequeExpr' fe@(EOpUn _ op e) = do
   t <- chequeExpr' e
   comContexto fe
@@ -266,60 +377,51 @@ chequeExpr' fe@(EOpBin _ op e1 e2) = do
 chequeExpr' (ELeia _) = pure TString
 chequeExpr' (EVar (IdR _ nome)) = getVar nome
 
-chequeExpr' (EChamada p (IdR _ nome) attrs) = do
-  (pos, pars, tipo) <- getFuncao nome
+chequeExpr' (EChamada _ (IdR _ nome) attrs) = do
+  (_, pars, tipo) <- getFuncao nome
   attrs' <- mapM chequeExpr attrs
   let (l1, l2) = (length pars, length attrs')
   unless (l1 == l2)
     (throwError (NumeroIncorretoDeParametros l1 l2))
-  mapM_ chequeTipos (zip pars attrs')
+  mapM_ (uncurry chequeTipos) (zip pars attrs')
   return tipo
-  where
-    chequeTipos :: (Tipo, Tipo) -> CheqM ()
-    chequeTipos (t1, t2) =
-      unless (t1 == t2)
-        (throwError (ErroDeTipo t1 t2))
 
 chequeUnOp :: OpUn -> Tipo -> CheqM Tipo
 chequeUnOp op t = do
   case op of
     Neg ->
-      if t `Set.member` numericos
+      if numerico t
       then return t
       else throwError (ErroDeTipo TInt t)
-    NaoOp ->
-      if t == TBool
-      then return TBool
-      else throwError (ErroDeTipo TBool t)
+    NaoOp -> 
+      chequeTipos TBool t
     Conv t2 ->
-      if t `Set.member` primitivos
+      if primitivo t
       then return t2
       else throwError (ErroDeTipo t2 t)
 
 chequeOpBin :: OpBin -> Tipo -> Tipo -> CheqM Tipo
 chequeOpBin op t1 t2 = do
-  let tipos_nums = all (`Set.member` numericos) [t1, t2]
-  let tipos_iguais = t1 == t2
+  let tipos_nums = all numerico [t1, t2]
   let op_numerica = op `elem` [Soma, Mul, Div, Exp, Mod, Sub]
   let op_comp = op `elem` [Menor, Maior, MenorIgualOp, MaiorIgualOp, IgualOp, DiferenteOp]
   let bool_op = op `elem` [AndOp, OrOp]
   case () of
-    () | op_numerica && tipos_nums ->
-      if tipos_iguais
-        then pure t1
-        else throwError (ErroDeTipo t1 t2)
-    () | op_numerica && Set.member t1 numericos ->
+    () | op_numerica && tipos_nums -> 
+      chequeTipos t1 t2
+
+    () | op_numerica && numerico t1 ->
       throwError (ErroDeTipo t1 t2)
-    () | op_numerica && Set.member t2 numericos ->
+
+    () | op_numerica && numerico t2 ->
       throwError (ErroDeTipo t2 t1)
-    () | op_comp ->
-      if tipos_iguais
-        then pure TBool
-        else throwError (ErroDeTipo t1 t2)
-    () | bool_op ->
-      if t1 == TBool && t2 == TBool
-        then pure TBool
-        else throwError (ErroDeTipo TBool (if t1 /= TBool then t1 else t2))
+
+    () | op_comp -> 
+      chequeTipos t1 t2 >> pure TBool
+
+    () | bool_op -> 
+      chequeTipos TBool t1 >> chequeTipos TBool t2
+
     () | otherwise ->
       error' "Na checagem de tipos: Tipo não identificado"
 
@@ -364,17 +466,16 @@ getVar nome = do
       Nothing -> getVar' nome vs
     getVar' nome' [] = throwError (NaoDeclarado nome')
 
-
 getFuncao :: String -> CheqM (Pos, [Tipo], Tipo)
 getFuncao nome = do
   definidos <- gets fs
   case Map.lookup nome definidos of
-    Just (p, tipos, tipo) -> return (p, tipos, tipo)
+    Just (p, pars, tipo) -> return (p, pars, tipo)
     Nothing -> throwError (NaoDeclarado nome)
 
 getProcedimento :: String -> CheqM (Pos, [Tipo])
 getProcedimento nome = do
   definidos <- gets ps
   case Map.lookup nome definidos of
-    Just (p, tipos) -> return (p, tipos)
+    Just (p, ts) -> return (p, ts)
     Nothing -> throwError (NaoDeclarado nome)

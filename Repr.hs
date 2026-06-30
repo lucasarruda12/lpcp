@@ -38,20 +38,14 @@ data Tipo
   | TTuple [Tipo]
   | TDict Tipo Tipo
   | TMatrix Tipo Int Int
+  | TQualquer
   deriving (Eq, Ord)
-
-instance Positional Tipo where
-  getPos (TId id) = getPos id
-  getPos (TList t) = getPos t
-  getPos (TTuple (t:_)) = getPos t
-  getPos (TDict k v) = getPos k
-  getPos (TMatrix t _ _) = getPos t
 
 data Parametro = Parametro Id Tipo Bool -- o booleano indica se tem & ou nao (posso estar tendo uma ideia errada)
 
 instance Show Parametro where
-  show (Parametro id tipo False) = show id ++ " :: " ++ show tipo
-  show (Parametro id tipo True) = "&" ++ show id ++ " :: " ++ show tipo
+  show (Parametro ident tipo False) = show ident ++ " :: " ++ show tipo
+  show (Parametro ident tipo True) = "&" ++ show ident ++ " :: " ++ show tipo
 --- criei isso aqui tambem mas tem que conferir se está correto
 
 data Programa = Programa
@@ -84,13 +78,12 @@ data Atribuendo
   = AId Id
   | AArray Id Expr
   | AEstrutura Id Id
-  | ARef Id
   deriving (Show)
 
 instance Positional Atribuendo where
-  getPos (AId id) = getPos id
-  getPos (AArray id e) = getPos id
-  getPos (ARef id) = getPos id
+  getPos (AId ident) = getPos ident
+  getPos (AArray ident _) = getPos ident
+  getPos (AEstrutura ident _) = getPos ident
 
 data Comando
   = Atribuicao Pos Atribuendo Expr
@@ -112,6 +105,9 @@ instance Positional Comando where
   getPos (EnquantoCmd p _) = p
   getPos (ImprimaCmd p _) = p
   getPos (ChamadaCmd p _ _) = p
+  getPos (Incremento p _) = p
+  getPos (RetorneCmd p _) = p
+  getPos (CasamentoCmd p _ _) = p
 
 instance Show Comando where
   show (Atribuicao _ lvalue rvalue) = show lvalue ++ " = " ++ show rvalue
@@ -186,6 +182,9 @@ instance Positional Lit where
   getPos (LInt p _) = p
   getPos (LString p _) = p
   getPos (LBool p _) = p
+  getPos (LFloat p _) = p
+  getPos (LReal p _) = p
+  getPos (LNada p) = p
 
 data Expr
   = ELit Lit
@@ -205,13 +204,19 @@ data Expr
 instance Show Expr where
   show (ELit l) = show l
   show (EVar v) = show v
-  show (ELeia p) = "leia" ++ show p
-  show (EOpBin p op e1 e2) = "(" ++ show e1 ++ " " ++ show op ++ " " ++ show e2 ++ ")"
-  show (EOpUn p op e) = show op ++ show e ++ show p
+  show (ELeia _) = "leia"
+  show (EOpBin _ op e1 e2) = "(" ++ show e1 ++ " " ++ show op ++ " " ++ show e2 ++ ")"
+  show (EOpUn _ op e) = show op ++ show e
   show (EEnum _ enum variante (Just e)) = show enum ++ "::" ++ show variante ++ "(" ++ show e ++ "("
   show (EEnum _ enum variante Nothing) = show enum ++ "::" ++ show variante
   show (EAcesso _ est campo) = show est ++ "." ++ show campo
   show (EEstrutura _ campos) = "{" ++ show campos ++ "}"
+  show (EChamada _ f args) = show f ++ "(" ++ intercalate "," (map show args) ++ ")"
+  show (EIndice _ e idx) = show e ++ "[" ++ show idx ++ "]"
+  show (EList _ es) = "[" ++ intercalate "," (map show es) ++ "]"
+  show (ETuple _ es) = "{" ++ intercalate "," (map show es) ++ "}"
+  show (EDict _ campos) = 
+    "{" ++ intercalate "," (map show campos) ++ "}"
 
 instance Positional Expr where
   getPos (ELit l) = getPos l
@@ -223,6 +228,10 @@ instance Positional Expr where
   getPos (EList p _) = p
   getPos (ETuple p _) = p
   getPos (EDict p _) = p
+  getPos (ELeia p) = p
+  getPos (EEnum p _ _ _) = p
+  getPos (EAcesso p _ _) = p
+  getPos (EEstrutura p _) = p
 -- ===================================
 
 ---------------------------------------
@@ -238,3 +247,5 @@ instance Show Tipo where
   show (TTuple tipos) = "(" ++ intercalate ", " (show <$> tipos) ++ ")"
   show (TDict t1 t2) = "{" ++ show t1 ++ "," ++ show t2 ++ "}"
   show (TMatrix t r c) = show t ++ "[" ++ show r ++ "x" ++ show c ++ "]"
+  show TNada = "Nada"
+  show TQualquer = "Qualquer"
