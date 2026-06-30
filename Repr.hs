@@ -38,6 +38,7 @@ data Tipo
   | TTuple [Tipo]
   | TDict Tipo Tipo
   | TMatrix Tipo Int Int
+  | TQualquer
   deriving (Eq, Ord)
 
 instance Positional Tipo where
