@@ -4,6 +4,7 @@ import Control.Monad.State
 import Control.Monad.Except
 import Data.Functor
 import Data.List (intercalate)
+import Text.Read (readMaybe)
 
 import GHC.Float (float2Double, double2Float)
 
@@ -32,8 +33,13 @@ evalCmds (cmd:cmds) = case cmd of
   (Atribuicao p lv e) -> 
     evalAtribuicao p lv e >> evalCmds cmds
 
-  (ImprimaCmd _ e) -> 
-    (evalExpr e >>= liftIO . print) >> evalCmds cmds
+  (ImprimaCmd _ e) -> do
+    v <- evalExpr e
+    case v of
+      (VString s) -> liftIO $ putStrLn s
+      _ -> liftIO $ print v
+
+    evalCmds cmds
 
   (Inicializacao _ i t e) ->
     (evalExpr e >>= addVar i) >> evalCmds cmds
@@ -151,8 +157,6 @@ evalAtribuicao p lv e = do
             else
               error ("Campo desconhecido: " ++ show campo)
 
-    ARef _ -> throwError FaltaImplementar
-
 -- Joga fora o retorno de um procedimento
 evalProcedimento :: ProcedimentoR -> [Expr] -> EvalM ()
 evalProcedimento (ProcedimentoR p ident pars cmds) args =
@@ -190,7 +194,7 @@ evalSubprograma (p, IdR _ nome , pars, cs, es) = do
             _ -> do
               scp <- resolveVar indent
               addVar n (VRef (scp, indent))
-        _ -> throwError FaltaImplementar
+        _ -> error (show e ++ " não pode ser atribuído")
       | otherwise = addVar n v *> add ps ves
 
     add [] [] = pure ()
@@ -357,7 +361,10 @@ evalOpUn (Conv TInt) v = Just $ case v of
   (VFloat x) -> VInt (truncate x)
   (VBool True) -> VInt 1
   (VBool False) -> VInt 0
-  (VString s) -> VInt (read s) --- TODO: MUUUIITO ERRADO!!!
+  (VString s) -> case (readMaybe s :: Maybe Int) of
+    Just x -> VInt x
+    Nothing -> error ("Não consigo converter " ++ s)
+    
 
 evalOpUn (Conv TBool) v = Just $ case v of
   (VInt 0) -> VBool False
@@ -375,7 +382,7 @@ evalOpUn (Conv TReal) v = Just $ case v of
   (VFloat x) -> VReal (float2Double x)
   (VBool True) -> VReal 1
   (VBool False) -> VReal 0
-  (VString s) -> VReal (read s) --- TODO: MUUUIITO ERRADO!!!
+  (VString s) -> VReal (read s) --- TODO: MUUUIITO ERRADO!!! Usar readMaybe no lugar de só read. Como está no convInt
 
 evalOpUn (Conv TFloat) v = Just $ case v of
   (VInt x) -> VFloat (fromIntegral x)

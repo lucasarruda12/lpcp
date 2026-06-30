@@ -95,7 +95,7 @@ addFuncao f@(FuncaoR pos (IdR _ nome) pars tipo _)
   = comContexto f $ do
     definidas <- gets fs
     case Map.lookup nome definidas of
-      Just (p', _, _) -> throwError (JaDefinido nome pos)
+      Just (p', _, _) -> throwError (JaDefinido nome p')
       Nothing -> pure ()
     pars' <- mapM chequeParametro pars
     _ <- chequeTipo tipo
@@ -179,8 +179,6 @@ chequeComando cmd =
               (ErroDeTipoAttr (nome, ltipo) (show e, rtipo))
             else declVar nome p ltipo -- Se for, adiciona a variável com esse nome e esse tipo lá na tabela de símbolos
 
-      
-
     (Declaracao p (IdR _ nome) tipo) ->
       declVar nome p tipo
 
@@ -202,6 +200,13 @@ chequeComando cmd =
 
     (ChamadaCmd _ (IdR _ nome) attrs) ->
       void (chequeChamadaCmd nome attrs)
+
+    (CasamentoCmd _ noivo bracos) -> do
+      noivoTipo <- chequeExpr noivo 
+      undefined 
+
+chequeBraco :: (Padrao, [Comando]) -> CheqM ()
+chequeBraco (Padrao ident ident', cmds) = undefined
 
 chequeChamadaCmd :: String -> [Expr] -> CheqM Tipo
 chequeChamadaCmd nome attrs = do
