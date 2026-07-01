@@ -440,10 +440,12 @@ litEnumP = do
 
 litEstruturaP :: Parser Expr
 litEstruturaP = do
-  p <- tokenP ChaveEsq
+  nome <- idP
+  p <- tokenP QuatroPontos
+  _ <- tokenP ChaveEsq
   campos <- sepBy1 campoP (tokenP Virgula)
   _ <- tokenP ChaveDir
-  return (EEstrutura p campos)
+  return (EEstrutura p nome campos)
   where
     campoP :: Parser (Id, Expr)
     campoP = do

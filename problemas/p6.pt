@@ -64,26 +64,47 @@ FUNCAO maximo(arv :: arvore, nivel :: Int) -> (Int, Int):
 FIM_FUNCAO.
 PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
   SE:
-    NOT vazio(fila), FAÇA:
+    tamanho == 0, FAÇA:
       SE:
-        tamanho == 0, FAÇA:
+        vazio(fila), FAÇA:
+          IMPRIMA "fim";
+        FIM_FAÇA.
+        NOT vazio(fila), FAÇA:
           IMPRIMA "---";
           porNivel(fila, proximo, 0);
         FIM_FAÇA.
-        tamanho > 0, FAÇA:
-          CASAMENTO fila[0]:
-            folha, FAÇA:
-              porNivel(cauda(fila), tamanho - 1, proximo);
-            FIM_FAÇA.
-            galho(t), FAÇA:
-              IMPRIMA t[1];
-              porNivel(anexar(anexar(cauda(fila), t[0]), t[2]), tamanho - 1, proximo + 2);
-            FIM_FAÇA.
-          FIM_CASAMENTO.
-        FIM_FAÇA.
       FIM_SE.
     FIM_FAÇA.
-    vazio(fila), FAÇA:
+    tamanho > 0, FAÇA:
+      CASAMENTO fila[0]:
+        folha, FAÇA:
+          porNivel(cauda(fila), tamanho - 1, proximo);
+        FIM_FAÇA.
+        galho(t), FAÇA:
+          IMPRIMA t[1];
+          DECLARE novaFila :: [arvore];
+          novaFila = cauda(fila);
+          DECLARE novoProximo :: Int;
+          novoProximo = proximo;
+          CASAMENTO t[0]:
+            folha, FAÇA:
+            FIM_FAÇA.
+            galho(esq), FAÇA:
+              novaFila = anexar(novaFila, t[0]);
+              novoProximo = novoProximo + 1;
+            FIM_FAÇA.
+          FIM_CASAMENTO.
+          CASAMENTO t[2]:
+            folha, FAÇA:
+            FIM_FAÇA.
+            galho(dir), FAÇA:
+              novaFila = anexar(novaFila, t[2]);
+              novoProximo = novoProximo + 1;
+            FIM_FAÇA.
+          FIM_CASAMENTO.
+          porNivel(novaFila, tamanho - 1, novoProximo);
+        FIM_FAÇA.
+      FIM_CASAMENTO.
     FIM_FAÇA.
   FIM_SE.
 FIM_PROCEDIMENTO.

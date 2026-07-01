@@ -1,0 +1,8 @@
+ESTRUTURA Ponto:
+  x :: Int,
+  y :: Int
+FIM_ESTRUTURA.
+
+INICIALIZE p :: Ponto COM Ponto::{x = "ola", y = 2};
+IMPRIMA p.x;
+IMPRIMA p.y;

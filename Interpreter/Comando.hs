@@ -275,7 +275,7 @@ evalExpr (EEnum pos enum variante me) = case me of
     return (VEnum variante [v])
   Nothing -> return (VEnum variante [])
 
-evalExpr (EEstrutura _ campos) = do
+evalExpr (EEstrutura _ nome campos) = do
   let (ids, es) = unzip campos
   vs <- mapM evalExpr es
   return (VEstrutura (zip ids vs))

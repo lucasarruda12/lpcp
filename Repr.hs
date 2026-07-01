@@ -202,7 +202,7 @@ data Expr
   | EDict Pos [(Expr, Expr)]
   | EEnum Pos Id Id (Maybe Expr)
   | EAcesso Pos Id Id
-  | EEstrutura Pos [(Id, Expr)]
+  | EEstrutura Pos Id [(Id, Expr)]
 
 instance Show Expr where
   show (ELit l) = show l
@@ -213,7 +213,7 @@ instance Show Expr where
   show (EEnum _ enum variante (Just e)) = show enum ++ "::" ++ show variante ++ "(" ++ show e ++ "("
   show (EEnum _ enum variante Nothing) = show enum ++ "::" ++ show variante
   show (EAcesso _ est campo) = show est ++ "." ++ show campo
-  show (EEstrutura _ campos) = "{" ++ show campos ++ "}"
+  show (EEstrutura _ nome campos) = "{" ++ show campos ++ "}"
   show (EChamada _ f args) = show f ++ "(" ++ intercalate "," (map show args) ++ ")"
   show (EIndice _ e idx) = show e ++ "[" ++ show idx ++ "]"
   show (EList _ es) = "[" ++ intercalate "," (map show es) ++ "]"
@@ -234,7 +234,7 @@ instance Positional Expr where
   getPos (ELeia p) = p
   getPos (EEnum p _ _ _) = p
   getPos (EAcesso p _ _) = p
-  getPos (EEstrutura p _) = p
+  getPos (EEstrutura p _ _) = p
 -- ===================================
 
 ---------------------------------------

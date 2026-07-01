@@ -395,6 +395,17 @@ chequeExpr' (EAcesso _ (IdR _ nome) campo) = do
     TQualquer -> pure TQualquer
     _ -> throwError (TipoNaoIndexavel tipo)
 
+-- estrutura 
+chequeExpr' (EEstrutura _ nome campos) = do
+  let tipo = TId nome
+  estruturas <- gets es
+  case Map.lookup tipo estruturas of
+    Nothing -> throwError (NaoDeclarado (show nome))
+    Just (_, camposTipo) -> do
+      mapM_ (chequeCampo camposTipo) campos
+      return tipo
+
+
 chequeExpr' (EEnum _ enumIdent variante mvalor) = do
   let enum = TId enumIdent
   mtipo <- mapM chequeExpr' mvalor
@@ -409,6 +420,14 @@ chequeExpr' (EEnum _ enumIdent variante mvalor) = do
         (Just t, Just t') -> chequeTipos t t'
 
     Nothing -> throwError (TipoNaoIndexavel enum)
+
+
+chequeCampo :: [(Id, Tipo)] -> (Id, Expr) -> CheqM ()
+chequeCampo camposTipo (campo, expr) = do
+  t <- chequeExpr expr
+  case lookup campo camposTipo of
+    Just esperado -> void $ chequeTipos esperado t
+    Nothing -> throwError (CampoNaoExiste (TId campo) campo)
 
 chequeUnOp :: OpUn -> Tipo -> CheqM Tipo
 chequeUnOp op t = do
