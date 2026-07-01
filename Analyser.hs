@@ -30,6 +30,7 @@ data ErroSemanticaEstatica
   | TipoNaoIndexavel Tipo
   | CampoNaoExiste Tipo Id
   | Contexto String ErroSemanticaEstatica
+  | NaoInicializado String
 
 instance Show ErroSemanticaEstatica where
   show (ErroDeTipo t1 t2) = "Esperava" +-+ show t1 +-+ "e recebi" +-+ show t2
@@ -42,6 +43,7 @@ instance Show ErroSemanticaEstatica where
   show (Contexto c err) = c ++ "\n>" +-+ show err
   show (TipoNaoIndexavel t) = "O tipo" +-+ show t +-+ "não é indexável"
   show (CampoNaoExiste t ident) = "O campo" +-+ show ident +-+ "não existe em" +-+ show t
+  show (NaoInicializado nome) = "A variável " +-+ nome +-+ " foi usada antes de ser inicializada"
 
 primitivo :: Tipo -> Bool
 primitivo = 
@@ -51,10 +53,13 @@ numerico :: Tipo -> Bool
 numerico = 
   (`Set.member` Set.fromList [TInt, TFloat, TReal])
 
+-- adicionando tipo para verificar variaveis utilizadas antes de serem inicializadas
+type InfoVar = (Pos, Tipo, Bool)
+
 data TabelaDeSimbolos = TS
   { ps :: Map.Map String (Pos, [Tipo])
   , fs :: Map.Map String (Maybe Pos, [Tipo], Tipo)
-  , variaveis :: [Map.Map String (Pos, Tipo)]
+  , variaveis :: [Map.Map String InfoVar]
   , ens :: Map.Map Tipo (Pos, [(Id, Tipo)])
   , es :: Map.Map Tipo (Pos, [(Id, Tipo)])
   , retornoEsperado :: Maybe Tipo
@@ -224,10 +229,10 @@ chequeComando cmd =
       case ltipo of
         TMatrix t _ _ -> 
           chequeTipos rtipo (TList (TList t))
-          >> declVar nome p ltipo
+          >> declVarInicializada nome p ltipo
         _ -> 
           chequeTipos ltipo rtipo
-          >> declVar nome p ltipo
+          >> declVarInicializada nome p ltipo
 
     (Declaracao p (IdR _ nome) tipo) ->
       declVar nome p tipo
@@ -294,25 +299,36 @@ chequeAtribuicao :: Atribuendo -> Expr -> CheqM ()
 chequeAtribuicao atribuendo rvalue = do
   rtipo <- chequeExpr rvalue
   case atribuendo of
-    (AId (IdR _ nome)) -> void $
-      getVar nome >>= (`chequeTipos` rtipo)
+    (AId (IdR _ nome)) -> do
+      ltipo <- getVarSemChecarInicializacao nome
+      void (chequeTipos ltipo rtipo)
+      inicializaVar nome
 
     (AArray (IdR _ nome) idx) -> do
-      ltipo <- getVar nome
+      ltipo <- getVarSemChecarInicializacao nome
       case ltipo of
-        (TList t) -> void $
-          chequeExpr idx >>= chequeTipos TInt
-          >> chequeTipos t rtipo
-        (TTuple _) -> void $
-          chequeExpr idx >>= chequeTipos TInt
-        (TDict ct vt) -> void $
-          chequeExpr idx >>= chequeTipos ct
-          >> chequeTipos vt rtipo
-        _ -> throwError (TipoNaoIndexavel ltipo)
+        (TList t) -> do
+          void $
+            chequeExpr idx >>= chequeTipos TInt
+            >> chequeTipos t rtipo
+          inicializaVar nome
+
+        (TTuple _) -> do
+          void $
+            chequeExpr idx >>= chequeTipos TInt
+          inicializaVar nome
+
+        (TDict ct vt) -> do
+          void $
+            chequeExpr idx >>= chequeTipos ct
+            >> chequeTipos vt rtipo
+          inicializaVar nome
+        _ -> 
+          throwError (TipoNaoIndexavel ltipo)
 
     -- Esse tá difícil de entender, mas com calma vai!
     (AEstrutura (IdR _ nome) campo) -> do
-      ltipo <- getVar nome
+      ltipo <- getVarSemChecarInicializacao nome
       estruturas <- gets es
       case ltipo of
         (TId _) ->
@@ -321,8 +337,9 @@ chequeAtribuicao atribuendo rvalue = do
 
             Just (_, campos) -> 
               case lookup campo campos of
-                Just campoTipo -> void $ 
-                  chequeTipos campoTipo rtipo
+                Just campoTipo -> do
+                   void $ chequeTipos campoTipo rtipo
+                   inicializaVar nome
 
                 Nothing -> throwError (CampoNaoExiste ltipo campo)
         _ -> 
@@ -516,18 +533,80 @@ declVar nome pos tipo = do
     [] -> error "Algo deu muito errado! Tentei adicionar uma variável e pilha da tabela de símbolos está completamente vazia"
     (v:vs) -> do
       case Map.lookup nome v of
-        Just (pos', _) -> throwError (JaDeclarado nome pos')
-        Nothing -> modify $ \ts -> ts { variaveis = Map.insert nome (pos, tipo) v : vs }
+        Just (pos',_, _) -> throwError (JaDeclarado nome pos')
+        Nothing -> modify $ \ts -> ts { variaveis = Map.insert nome (pos, tipo, False) v : vs }
 
+declVarInicializada :: String -> Pos -> Tipo -> CheqM ()
+declVarInicializada nome pos tipo = do
+  vars <- gets variaveis
+  case vars of
+    [] ->
+      error "Pilha de escopos vazia."
+
+    (v:vs) ->
+      case Map.lookup nome v of
+
+        Just (pos',_,_) ->
+          throwError (JaDeclarado nome pos')
+
+        Nothing ->
+          modify $ \ts ->
+            ts
+            { variaveis =
+                Map.insert nome (pos,tipo,True) v : vs
+            }
+
+getVarInfo :: String -> CheqM InfoVar
+getVarInfo nome = do
+  vars <- gets variaveis
+  procura vars
+  where
+
+    procura [] =
+      throwError (NaoDeclarado nome)
+
+    procura (v:vs) =
+      case Map.lookup nome v of
+
+        Just info ->
+          return info
+
+        Nothing ->
+          procura vs
 getVar :: String -> CheqM Tipo
 getVar nome = do
-  vars <- gets variaveis
-  getVar' nome vars
+  (_,tipo,inicializada) <- getVarInfo nome
+
+  if inicializada
+    then return tipo
+    else throwError (NaoInicializado nome)
+
+getVarSemChecarInicializacao :: String -> CheqM Tipo
+getVarSemChecarInicializacao nome = do
+  (_,tipo,_) <- getVarInfo nome
+  return tipo
+
+inicializaVar :: String -> CheqM ()
+inicializaVar nome = do
+    vars <- gets variaveis
+    novosEscopos <- atualiza vars
+    modify $ \ts -> ts { variaveis = novosEscopos }
+
   where
-    getVar' nome' (v:vs) = case Map.lookup nome' v of
-      Just (_, tipo) -> pure tipo
-      Nothing -> getVar' nome vs
-    getVar' nome' [] = throwError (NaoDeclarado nome')
+
+    atualiza [] =
+        throwError (NaoDeclarado nome)
+
+    atualiza (v:vs) =
+        case Map.lookup nome v of
+
+            Just (p,t,_) ->
+                return $
+                    Map.insert nome (p,t,True) v : vs
+
+            Nothing -> do
+                resto <- atualiza vs
+                return (v : resto)
 
 getFuncao :: String -> CheqM (Pos, [Tipo], Tipo)
 getFuncao nome = do
