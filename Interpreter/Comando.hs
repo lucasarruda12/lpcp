@@ -205,6 +205,7 @@ evalSubprograma (p, IdR _ nome , pars, cs, es) = do
             _ -> do
               scp <- resolveVar indent
               addVar n (VRef (scp, indent))
+              add ps ves
         _ -> error' (show e ++ " não pode ser atribuído")
       | otherwise = addVar n v *> add ps ves
 

@@ -1,0 +1,13 @@
+INICIALIZE y :: Int COM 2;
+SE:
+    VERDADEIRO, FAÇA:
+        INICIALIZE x :: Int COM 1;
+        SE:
+            VERDADEIRO, FAÇA:
+                INICIALIZE x :: Int COM 2;
+                IMPRIMA x;
+            FIM_FAÇA.
+        FIM_SE.
+        IMPRIMA x;
+    FIM_FAÇA.
+FIM_SE.
