@@ -146,7 +146,14 @@ comandoP =
   <|> enquantoP
   <|> chamadaCmdP
   <|> try casamentoP
+  <|> passeP
     where
+      passeP :: Parser Comando
+      passeP = do
+        p <- tokenP Passe
+        _ <- tokenP PontoVirgula
+        return (PasseCmd p)
+
       incrementoP :: Parser Comando
       incrementoP = do
         id <- idP

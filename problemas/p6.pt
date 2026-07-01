@@ -22,11 +22,12 @@ FUNCAO inserir(val :: Int, arv :: arvore) -> arvore:
 FIM_FUNCAO.
 
 INICIALIZE a :: arvore COM arvore::folha;
-INICIALIZE a :: arvore COM inserir(5, a);
-INICIALIZE a :: arvore COM inserir(3, a);
-INICIALIZE a :: arvore COM inserir(7, a);
-INICIALIZE a :: arvore COM inserir(1, a);
-INICIALIZE a :: arvore COM inserir(9, a);
+a = inserir(5, a);
+a = inserir(3, a);
+a = inserir(7, a);
+a = inserir(1, a);
+a = inserir(9, a);
+
 FUNCAO minimo(arv :: arvore, nivel :: Int) -> (Int, Int):
   CASAMENTO arv:
     folha, FAÇA:
@@ -89,7 +90,7 @@ PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
           novoProximo = proximo;
           CASAMENTO t[0]:
             folha, FAÇA:
-              INICIALIZE nada :: Int COM 0;
+              PASSE;
             FIM_FAÇA.
             galho(esq), FAÇA:
               novaFila = anexar(novaFila, t[0]);
@@ -98,7 +99,7 @@ PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
           FIM_CASAMENTO.
           CASAMENTO t[2]:
             folha, FAÇA:
-              INICIALIZE nada :: Int COM 0;
+              PASSE;
             FIM_FAÇA.
             galho(dir), FAÇA:
               novaFila = anexar(novaFila, t[2]);

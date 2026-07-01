@@ -33,6 +33,8 @@ evalCmds (cmd:cmds) = case cmd of
   (Atribuicao p lv e) -> 
     evalAtribuicao p lv e >> evalCmds cmds
 
+  (PasseCmd _) -> evalCmds cmds
+
   (Declaracao _ i _) ->
     addVar i VNada >> evalCmds cmds
 

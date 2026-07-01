@@ -59,6 +59,7 @@ tokens :-
   COM {\p _ -> Token p Com}
   IMPRIMA {\p _ -> Token p Imprima}
   NADA {\p _ -> Token p Nada}
+  PASSE {\p _ -> Token p Passe}
 
   ENUM {\p _ -> Token p EnumTok}
   FIM_ENUM. {\p _ -> Token p FimEnum}
@@ -183,6 +184,7 @@ data TokenKind
   | FimCasamento
   | Estrutura
   | FimEstrutura
+  | Passe
   deriving (Eq)
 
 instance Show TokenKind where
@@ -254,6 +256,7 @@ instance Show TokenKind where
   show FimCasamento="FIM_CASAMENTO."
   show Estrutura="ESTRUTURA"
   show FimEstrutura="FIM_ESTRUTURA."
+  show Passe = "PASSE"
    
 tokenize :: String -> [Token]
 tokenize = alexScanTokens

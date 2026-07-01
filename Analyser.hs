@@ -71,7 +71,7 @@ tabelaVazia = TS
   , fs = Map.fromList 
     [ ("vazio", (Nothing, [TList TQualquer], TBool))
     , ("cauda", (Nothing, [TList TQualquer], TList TQualquer))
-    , ("anexar", (Nothing, [TList TQualquer, TList TQualquer], TList TQualquer))
+    , ("anexar", (Nothing, [TList TQualquer, TQualquer], TList TQualquer))
     ]
   , variaveis = [Map.empty]
   , ens = Map.empty
@@ -226,6 +226,8 @@ chequeComando cmd =
     (ImprimaCmd _ e) ->
       void (chequeExpr e)
 
+    (PasseCmd _) -> pure ()
+
     -- Usa esse aqui como exemplo:
     (Inicializacao p (IdR _ nome) ltipo e) -> do
       rtipo <- chequeExpr e -- <- encontre o tipo de e
@@ -276,13 +278,13 @@ chequeComando cmd =
 
 chequeBraco :: Tipo -> (Padrao, [Comando]) -> CheqM ()
 chequeBraco t (Padrao variante mcaptura, cmds) = do
-  definidos <- gets es
+  definidos <- gets ens
   case Map.lookup t definidos of
     Just (_, variantes) ->
       case lookup variante variantes of
         Just t2 -> comEscopo $ do
           case mcaptura of
-            Just (IdR p captura) -> declVar captura p t2
+            Just (IdR p captura) -> declVarInicializada captura p t2
             Nothing -> pure ()
           mapM_ chequeComando cmds
         Nothing -> 
@@ -369,8 +371,34 @@ chequeExpr' (ELit l) = case l of
   LReal _ _ -> pure TReal
   LNada _  -> pure TNada
 
-chequeExpr' (ETuple _ _) = pure TQualquer
-chequeExpr' (EIndice _ _ _) = pure TInt
+chequeExpr' (ETuple _ []) = pure (TTuple [])
+chequeExpr' (ETuple p (e:es)) = do
+  t1 <- chequeExpr' e
+  ttuple <- chequeExpr' (ETuple p es)
+  case ttuple of
+    TTuple ts -> return $ TTuple (t1 : ts)
+    TQualquer -> return TQualquer
+    _ -> 
+      error' ("chequeExpr' (ETuple) retornou algo diferente de TTuple:" +-+ show t1 +-+ show ttuple)
+  
+chequeExpr' (EIndice _ e idx) = do
+  ltipo <- chequeExpr' e
+  case ltipo of
+    (TList t) ->
+        (chequeExpr idx >>= chequeTipos TInt)
+        >> return t
+
+    (TTuple _) -> do
+        chequeExpr idx >>= chequeTipos TInt
+        >> return TQualquer
+
+    (TDict ct vt) ->
+        chequeExpr idx >>= chequeTipos ct
+        >> return vt
+    TQualquer -> return TQualquer
+    _ -> 
+        throwError (TipoNaoIndexavel ltipo)
+  
 
 chequeExpr' (EList _ []) = pure (TList TQualquer)
 chequeExpr' (EList _ [e]) = TList <$> chequeExpr' e
@@ -396,8 +424,6 @@ chequeExpr' (EDict p ((c, v):cvs)) = do
       >> chequeTipos tv' tv
     _ ->
       error' "chequeExpr' (EDict) retornou algo diferente de TDict"
-
--- chequeExpr' (EIndice _ 
 
 chequeExpr' fe@(EOpUn _ op e) = do
   t <- chequeExpr' e
@@ -460,7 +486,7 @@ chequeExpr' (EEnum _ enumIdent variante mvalor) = do
         (Just t, Nothing) -> throwError (ErroDeTipo t TNada)
         (Nothing, Nothing) -> pure enum
         (Nothing, Just t) -> throwError (ErroDeTipo TNada t)
-        (Just t, Just t') -> chequeTipos t t'
+        (Just t, Just t') -> chequeTipos t t' >> pure enum
 
     Nothing -> throwError (TipoNaoIndexavel enum)
 
@@ -492,6 +518,7 @@ chequeOpBin op t1 t2 = do
   let op_numerica = op `elem` [Soma, Mul, Div, Exp, Mod, Sub]
   let op_comp = op `elem` [Menor, Maior, MenorIgualOp, MaiorIgualOp, IgualOp, DiferenteOp]
   let bool_op = op `elem` [AndOp, OrOp]
+  let string_op = op `elem` [Soma]
   case () of
     () | op_numerica && tipos_nums -> 
       chequeTipos t1 t2
@@ -508,8 +535,11 @@ chequeOpBin op t1 t2 = do
     () | bool_op -> 
       chequeTipos TBool t1 >> chequeTipos TBool t2
 
+    () | string_op ->
+      chequeTipos TString t1 >> chequeTipos TString t2      
+
     () | otherwise ->
-      error' "Na checagem de tipos: Tipo não identificado"
+      error' ("Na checagem de tipos: Tipo não identificado" +-+ show t1 +-+ show t2)
 
 comEscopo :: CheqM a -> CheqM a
 comEscopo acao = do

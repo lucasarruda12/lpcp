@@ -99,6 +99,7 @@ data Comando
   | RetorneCmd Pos Expr
   | ChamadaCmd Pos Id [Expr]
   | CasamentoCmd Pos Expr [(Padrao, [Comando])]
+  | PasseCmd Pos
 
 instance Positional Comando where
   getPos (Atribuicao p _ _) = p
@@ -111,6 +112,7 @@ instance Positional Comando where
   getPos (Incremento p _) = p
   getPos (RetorneCmd p _) = p
   getPos (CasamentoCmd p _ _) = p
+  getPos (PasseCmd p) = p
 
 instance Show Comando where
   show (Atribuicao _ lvalue rvalue) = show lvalue ++ " = " ++ show rvalue
@@ -124,6 +126,7 @@ instance Show Comando where
   show (ChamadaCmd _ nome pars) = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ")"
   show (CasamentoCmd _ _ _) = "CASAMENTO" -- tava faltando isso
   show (Incremento _ nome) = show nome ++ "++"
+  show (PasseCmd p) = "PASSE"
 
 -- == Tudo relacionado a expressões ==
 data OpBin
