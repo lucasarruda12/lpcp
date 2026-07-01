@@ -7,11 +7,11 @@ FUNCAO rational (dividendo :: Int, divisor :: Int) -> rational_t:
   SE:
     divisor == 0, FAÇA:
       IMPRIMA "divisão por 0";
-      RETORNE { dividendo = 0, divisor = 0 };
+      RETORNE rational_t::{ dividendo = 0, divisor = 0 };
     FIM_FAÇA.
 
     divisor != 0, FAÇA:
-      RETORNE { dividendo = dividendo, divisor = divisor };
+      RETORNE rational_t::{ dividendo = dividendo, divisor = divisor };
     FIM_FAÇA.
   FIM_SE.
 FIM_FUNCAO.
@@ -27,33 +27,33 @@ FUNCAO igual (x :: rational_t, y :: rational_t) -> Bool:
   FIM_SE.
 FIM_FUNCAO.
 
-FUNCAO soma(x :: rational, y :: rational) -> rational:
-  RETORNE {
+FUNCAO soma(x :: rational_t, y :: rational_t) -> rational_t:
+  RETORNE rational_t::{
     dividendo = x.dividendo * y.divisor + y.dividendo * x.divisor,
     divisor = x.divisor * y.divisor
   };
 FIM_FUNCAO.
 
-FUNCAO negacao(x :: rational) -> rational:
-  RETORNE { dividendo = - x.dividendo, divisor = x.divisor };
+FUNCAO negacao(x :: rational_t) -> rational_t:
+  RETORNE rational_t::{ dividendo = - x.dividendo, divisor = x.divisor };
 FIM_FUNCAO.
 
-FUNCAO multiplicacao(x :: rational, y :: rational) -> rational:
-  RETORNE {
+FUNCAO multiplicacao(x :: rational_t, y :: rational_t) -> rational_t:
+  RETORNE rational_t::{
     dividendo = x.dividendo * y.dividendo,
     divisor = x.divisor * y.divisor
   };
 FIM_FUNCAO.
 
-FUNCAO inverso(x :: rational) -> rational:
-  RETORNE {
+FUNCAO inverso(x :: rational_t) -> rational_t:
+  RETORNE rational_t::{
     dividendo = x.divisor,
     divisor = x.dividendo
   };
 FIM_FUNCAO.
 
-FUNCAO divisao(x :: rational, y :: rational) -> rational:
-  RETORNE {
+FUNCAO divisao(x :: rational_t, y :: rational_t) -> rational_t:
+  RETORNE rational_t::{
     dividendo = x.divisor * y.dividendo,
     divisor = x.dividendo * y.divisor
   };
@@ -63,8 +63,8 @@ INICIALIZE x :: rational_t COM rational(3, 2);
 INICIALIZE y :: rational_t COM rational(6, 4);
 INICIALIZE z :: rational_t COM rational(5, 2);
 
-IMPRIMA igual(soma(x, y), { dividendo = 12, divisor = 4 });
-IMPRIMA igual(negacao(x), { dividendo = -6, divisor = 4 });
+IMPRIMA igual(soma(x, y), rational_t::{ dividendo = 12, divisor = 4 });
+IMPRIMA igual(negacao(x), rational_t::{ dividendo = -6, divisor = 4 });
 IMPRIMA multiplicacao(x, y);
 IMPRIMA inverso(y);
 IMPRIMA divisao(x, y);

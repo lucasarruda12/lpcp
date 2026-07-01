@@ -62,6 +62,7 @@ FUNCAO maximo(arv :: arvore, nivel :: Int) -> (Int, Int):
     FIM_FAÇA.
   FIM_CASAMENTO.
 FIM_FUNCAO.
+
 PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
   SE:
     tamanho == 0, FAÇA:
@@ -88,6 +89,7 @@ PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
           novoProximo = proximo;
           CASAMENTO t[0]:
             folha, FAÇA:
+              INICIALIZE nada :: Int COM 0;
             FIM_FAÇA.
             galho(esq), FAÇA:
               novaFila = anexar(novaFila, t[0]);
@@ -96,6 +98,7 @@ PROCEDIMENTO porNivel(fila :: [arvore], tamanho :: Int, proximo :: Int):
           FIM_CASAMENTO.
           CASAMENTO t[2]:
             folha, FAÇA:
+              INICIALIZE nada :: Int COM 0;
             FIM_FAÇA.
             galho(dir), FAÇA:
               novaFila = anexar(novaFila, t[2]);

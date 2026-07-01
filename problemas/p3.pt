@@ -1,4 +1,4 @@
-FUNCAO obter_tamanho(l :: [Int]) -> Int:
+FUNCAO obter_tamanho(l :: [Qualquer]) -> Int:
     INICIALIZE tamanho :: Int COM 0;
     ENQUANTO:
         NOT vazio(l), FAÇA:

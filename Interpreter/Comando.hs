@@ -33,6 +33,9 @@ evalCmds (cmd:cmds) = case cmd of
   (Atribuicao p lv e) -> 
     evalAtribuicao p lv e >> evalCmds cmds
 
+  (Declaracao _ i _) ->
+    addVar i VNada >> evalCmds cmds
+
   (ImprimaCmd _ e) -> do
     v <- evalExpr e
     case v of
@@ -46,6 +49,12 @@ evalCmds (cmd:cmds) = case cmd of
 
   (ChamadaCmd p nome args) -> 
     getProc nome >>= (`evalProcedimento` args) >> evalCmds cmds
+
+  (Incremento p i) -> do
+    v <- getValue i
+    case v of
+      VInt x -> modificarVar i (VInt (x + 1)) >> evalCmds cmds
+      _ -> throwError (TypeError p)
 
   (EnquantoCmd p uncs) -> do
     scp <- novoBloco "ENQUANTO"

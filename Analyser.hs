@@ -194,12 +194,15 @@ chequeParametro (Parametro _ tipo _)
 
 declParametro :: Parametro -> CheqM ()
 declParametro (Parametro (IdR p nome) tipo _)
-  = declVar nome p tipo
+  = declVarInicializada nome p tipo
 
 chequeProcedimento :: ProcedimentoR -> CheqM ()
 chequeProcedimento p@(ProcedimentoR _ _ pars cmds)
-  = comEscopo (comContexto p
-    (mapM_ declParametro pars >> mapM_ chequeComando cmds))
+  = comEscopo (comContexto p $ do
+      modify $ \ts -> ts { retornoEsperado = Just TNada }
+      mapM_ declParametro pars
+      mapM_ chequeComando cmds
+      modify $ \ts -> ts { retornoEsperado = Nothing })
 
 chequeFuncao :: FuncaoR -> CheqM ()
 -- mudando a checagem de funcao para verificar o tipo do retorno
@@ -365,6 +368,9 @@ chequeExpr' (ELit l) = case l of
   LFloat _ _ -> pure TFloat
   LReal _ _ -> pure TReal
   LNada _  -> pure TNada
+
+chequeExpr' (ETuple _ _) = pure TQualquer
+chequeExpr' (EIndice _ _ _) = pure TInt
 
 chequeExpr' (EList _ []) = pure (TList TQualquer)
 chequeExpr' (EList _ [e]) = TList <$> chequeExpr' e
