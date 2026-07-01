@@ -1,0 +1,4 @@
+FUNCAO testando (a :: Int, b :: Int) -> Int:
+
+    RETORNE("Ola");
+FIM_FUNCAO.

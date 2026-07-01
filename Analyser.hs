@@ -57,6 +57,7 @@ data TabelaDeSimbolos = TS
   , variaveis :: [Map.Map String (Pos, Tipo)]
   , ens :: Map.Map Tipo (Pos, [(Id, Tipo)])
   , es :: Map.Map Tipo (Pos, [(Id, Tipo)])
+  , retornoEsperado :: Maybe Tipo
   }
 
 tabelaVazia :: TabelaDeSimbolos
@@ -70,6 +71,7 @@ tabelaVazia = TS
   , variaveis = [Map.empty]
   , ens = Map.empty
   , es = Map.empty
+  , retornoEsperado = Nothing
   }
 
 tipos :: TabelaDeSimbolos -> Map.Map Tipo (Maybe Pos)
@@ -195,9 +197,19 @@ chequeProcedimento p@(ProcedimentoR _ _ pars cmds)
     (mapM_ declParametro pars >> mapM_ chequeComando cmds))
 
 chequeFuncao :: FuncaoR -> CheqM ()
-chequeFuncao f@(FuncaoR _ _ pars _ cmds)
-  = comEscopo (comContexto f
-    (mapM_ declParametro pars >> mapM_ chequeComando cmds))
+-- mudando a checagem de funcao para verificar o tipo do retorno
+chequeFuncao f@(FuncaoR _ _ pars tipo cmds) =
+    comEscopo $
+      comContexto f $ do
+
+        modify $ \ts ->
+            ts { retornoEsperado = Just tipo }
+
+        mapM_ declParametro pars
+        mapM_ chequeComando cmds
+
+        modify $ \ts ->
+            ts { retornoEsperado = Nothing }
 
 -- Usa esse aqui como exemplo:
 chequeComando :: Comando -> CheqM ()
@@ -232,9 +244,17 @@ chequeComando cmd =
 
     (Incremento _ (IdR _ nome)) ->
       void (getVar nome)
+-- alterando aqui tambem!
+    (RetorneCmd _ e) -> do
+      tipoExpr <- chequeExpr e
+      esperado <- gets retornoEsperado
 
-    (RetorneCmd _ e) ->
-      void (chequeExpr e)
+      case esperado of
+        Nothing ->
+            error' "RETORNE fora de função."
+
+        Just tipo ->
+            void (chequeTipos tipo tipoExpr)
 
     (ChamadaCmd _ (IdR _ nome) attrs) ->
       chequeChamadaCmd nome attrs
