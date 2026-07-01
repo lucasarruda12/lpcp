@@ -72,7 +72,9 @@ instance Show ProcedimentoR where
 
 data FuncaoR 
   = FuncaoR Pos Id [Parametro] Tipo [Comando]
-  deriving (Show)
+
+instance Show FuncaoR where
+  show (FuncaoR _ nome pars tipo _) = show nome ++ "(" ++ intercalate ", " (show <$> pars) ++ ") -> " ++ show tipo
 
 instance Positional FuncaoR where
   getPos (FuncaoR p _ _ _ _) = p
@@ -81,7 +83,11 @@ data Atribuendo
   = AId Id
   | AArray Id Expr
   | AEstrutura Id Id
-  deriving (Show)
+
+instance Show Atribuendo where
+  show (AId ident) = show ident
+  show (AArray ident idx) = show ident ++ "[" ++ show idx ++ "]"
+  show (AEstrutura ident campo) = show ident ++ "." ++ show campo
 
 instance Positional Atribuendo where
   getPos (AId ident) = getPos ident
@@ -155,7 +161,11 @@ instance Show OpBin where
 
 data OpUn
   = Neg | NaoOp | Conv Tipo
-  deriving (Show)
+
+instance Show OpUn where
+  show Neg = "-"
+  show NaoOp = "NAO"
+  show (Conv t) = show t
 
 data Lit
   = LInt Pos Int
@@ -165,17 +175,6 @@ data Lit
   | LReal Pos Double
   | LNada Pos
 
-data Padrao = Padrao Id (Maybe Id)
-
-data VarianteEnum = VarianteEnum Id (Maybe Tipo)
-  deriving (Show)
-
-data EnumDecl = EnumDecl Pos Id [VarianteEnum]
-  deriving (Show)
-
-data EstruturaDecl = EstruturaDecl Pos Id [(Id, Tipo)]
-  deriving (Show)
-
 instance Show Lit where
   show (LInt _ x) = show x
   show (LString _ x) = show x
@@ -183,6 +182,25 @@ instance Show Lit where
   show (LFloat _ x) = show x
   show (LReal _ x) = show x
   show (LNada _) = "NADA"
+
+data Padrao = Padrao Id (Maybe Id)
+
+data VarianteEnum = VarianteEnum Id (Maybe Tipo)
+
+instance Show VarianteEnum where
+  show (VarianteEnum id Nothing) = show id
+  show (VarianteEnum id (Just t)) = show id ++ "(" ++ show t ++ ")"
+
+data EnumDecl = EnumDecl Pos Id [VarianteEnum]
+
+instance Show EnumDecl where
+  show (EnumDecl _ id _) = "enum " ++ show id
+
+data EstruturaDecl = EstruturaDecl Pos Id [(Id, Tipo)]
+
+instance Show EstruturaDecl where
+  show (EstruturaDecl _ id _) = "estrutura " ++ show id
+
 
 instance Positional Lit where
   getPos (LInt p _) = p
