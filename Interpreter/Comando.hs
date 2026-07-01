@@ -56,7 +56,7 @@ evalCmds (cmd:cmds) = case cmd of
     v <- getValue i
     case v of
       VInt x -> modificarVar i (VInt (x + 1)) >> evalCmds cmds
-      _ -> throwError (TypeError p)
+      _ -> error' "Tipo não incrementável"
 
   (EnquantoCmd p uncs) -> do
     scp <- novoBloco "ENQUANTO"
@@ -72,7 +72,7 @@ evalCmds (cmd:cmds) = case cmd of
 
             VBool False -> go uncs'
 
-            _ -> throwError (TypeError p)
+            _ -> error' "Expressão não boleana"
 
     retorno <- go uncs
     case retorno of
@@ -82,7 +82,7 @@ evalCmds (cmd:cmds) = case cmd of
   (SeCmd p uncs) -> do
     scp <- novoBloco "SE"
 
-    let go [] = throwError (UnexaustivePatterns p)
+    let go [] = error' "A condição do se deve resultar em um valor booleano."
 
         go ((e,cmds'):uncs') = do
           v <- evalExpr e
@@ -92,7 +92,7 @@ evalCmds (cmd:cmds) = case cmd of
 
             VBool False -> go uncs'
 
-            _ -> throwError (TypeError p)
+            _ -> error' "A condição do se deve resultar em um valor booleano."
 
     retorno <- go uncs
     case retorno of
@@ -111,7 +111,7 @@ evalCmds (cmd:cmds) = case cmd of
   (RetorneCmd _ e) -> Just <$> evalExpr e
 
 evalBraco :: Valor -> [(Padrao, [Comando])] -> EvalM (Maybe Valor)
-evalBraco _ [] = error "Padrão não existe"
+evalBraco _ [] = error' "Padrão não existe"
 evalBraco v ((Padrao variante captura, cmds) : resto) = 
   case v of
     VEnum nome valores ->
@@ -122,7 +122,7 @@ evalBraco v ((Padrao variante captura, cmds) : resto) =
           _ -> return ()
         evalCmds cmds
       else evalBraco v resto
-    _ -> error (show v ++ " não é um enum")
+    _ -> error' (show v ++ " não é um enum")
 
 evalAtribuicao :: Pos -> Atribuendo -> Expr -> EvalM ()
 evalAtribuicao p lv e = do
@@ -139,18 +139,18 @@ evalAtribuicao p lv e = do
         (VList xs, VInt i)
           | i >= 0 && i < length xs -> 
               return $ VList (take i xs ++ [rv] ++ drop (i+1) xs)
-          | otherwise -> throwError IndexOutOfBounds
+          | otherwise ->  error' "Índice fora dos limites da coleção."
         
         (VTuple xs, VInt i)
           | i >= 0 && i < length xs ->
               return $ VTuple (take i xs ++ [rv] ++ drop (i+1) xs)
-          | otherwise -> throwError IndexOutOfBounds
+          | otherwise -> error' "Índice fora dos limites da coleção."
         
         (VDict pairs, VString key) ->
           let newPairs = map (\(k,v) -> if k == VString key then (k, rv) else (k,v)) pairs
           in return $ VDict newPairs
         
-        _ -> throwError $ TypeError p
+        _ -> error' "A atribuição por índice recebeu um tipo de valor ou índice inválido."
       
       -- Atualizar a variável original
       modificarVar arrayNome newArrayVal $> ()
@@ -166,7 +166,7 @@ evalAtribuicao p lv e = do
               modificarVar nome (VEstrutura novosCampos)
               pure ()
             else
-              error ("Campo desconhecido: " ++ show campo)
+              error' ("Campo desconhecido: " ++ show campo)
 
 -- Joga fora o retorno de um procedimento
 evalProcedimento :: ProcedimentoR -> [Expr] -> EvalM ()
@@ -180,7 +180,7 @@ evalFuncao (FuncaoR p i pars _ cmds) args = do
   retorno <- evalSubprograma (p, i, pars, cmds, args)
   case retorno of
     Just v -> return v
-    Nothing -> error "Função sem retorno"
+    Nothing -> error' "Função sem retorno"
 
 -- Isso aqui tá feio e mal feito.
 -- Se tiver algum erro aqui nessa parte, 
@@ -205,11 +205,11 @@ evalSubprograma (p, IdR _ nome , pars, cs, es) = do
             _ -> do
               scp <- resolveVar indent
               addVar n (VRef (scp, indent))
-        _ -> error (show e ++ " não pode ser atribuído")
+        _ -> error' (show e ++ " não pode ser atribuído")
       | otherwise = addVar n v *> add ps ves
 
     add [] [] = pure ()
-    add _ _ = throwError IncorrectNumberOfParameters
+    add _ _ = error' "A quantidade de argumentos fornecida não corresponde à assinatura do subprograma."
 
 evalLit :: Lit -> EvalM Valor
 evalLit (LInt _ x) = pure $ VInt x
@@ -232,19 +232,19 @@ evalExpr (EChamada p ident@(IdR _ nome) args) = case nome of
     case vs of
       [VList []] -> return (VBool True)
       [VList _]  -> return (VBool False)
-      _          -> throwError $ TypeError p
+      _          -> error' "A função vazio espera receber exatamente uma lista."
 
   "cauda" -> do
     vs <- mapM evalExpr args
     case vs of
       [VList (_:xs)] -> return (VList xs)
-      _              -> throwError $ TypeError p
+      _              -> error' "A função cauda espera receber uma lista não vazia."
 
   "anexar" -> do
     vs <- mapM evalExpr args
     case vs of
       [VList xs, elem] -> return (VList (xs ++ [elem]))
-      _                -> throwError $ TypeError p
+      _                -> error' "A função anexar espera receber uma lista e um elemento."
 
   _ -> getFunc ident >>= (`evalFuncao` args)
 
@@ -254,18 +254,18 @@ evalExpr (EIndice p container idx) = do
   case (containerVal, idxVal) of
     (VList xs, VInt i) 
       | i >= 0 && i < length xs -> return (xs !! i)
-      | otherwise -> throwError IndexOutOfBounds
+      | otherwise -> error' "Índice fora dos limites da coleção."
     
     (VTuple xs, VInt i)
       | i >= 0 && i < length xs -> return (xs !! i)
-      | otherwise -> throwError IndexOutOfBounds
+      | otherwise -> error' "Índice fora dos limites da coleção."
           
     (VDict pairs, VString key) ->
       case lookup (VString key) pairs of
         Just v -> return v
-        Nothing -> throwError KeyNotFound
+        Nothing -> error' "A chave informada não existe no dicionário."
     
-    _ -> throwError $ TypeError p
+    _ -> error' "Operação de indexação inválida para o tipo informado."
 
 evalExpr (EList _ elems) = do
   vs <- mapM evalExpr elems
@@ -297,21 +297,21 @@ evalExpr (EAcesso _ nome campo) = do
     (VEstrutura campos) -> do
       case lookup campo campos of
         Just valor -> return valor
-        Nothing -> error (show nome ++ " não contém campo " ++ show campo)
-    _ -> error (show nome ++ " não é uma estrutura")
+        Nothing -> error' (show nome ++ " não contém campo " ++ show campo)
+    _ -> error' (show nome ++ " não é uma estrutura")
 
 evalExpr (EOpBin p op e1 e2) = do
   v1 <- evalExpr e1
   v2 <- evalExpr e2
   case evalOpBin op v1 v2 of
     Just v -> pure v
-    Nothing -> throwError $ TypeError p
+    Nothing ->error' ("Operação inválida entre " ++ show v1 ++ " e " ++ show v2)
 
 evalExpr (EOpUn p op e1) = do
   v1 <- evalExpr e1
   case evalOpUn op v1 of
     Just v -> pure v
-    Nothing -> throwError $ TypeError p
+    Nothing -> error' "Operação unária incompatível com o tipo do operando."
 
 
 evalOpBin :: OpBin -> Valor -> Valor -> Maybe Valor
@@ -374,7 +374,7 @@ evalOpUn (Conv TInt) v = Just $ case v of
   (VBool False) -> VInt 0
   (VString s) -> case (readMaybe s :: Maybe Int) of
     Just x -> VInt x
-    Nothing -> error ("Não consigo converter " ++ s)
+    Nothing -> error' ("Não consigo converter " ++ s)
     
 
 evalOpUn (Conv TBool) v = Just $ case v of
@@ -408,3 +408,6 @@ evalOpUn (Conv TString) v = Just $ case v of
   (VBool b) -> VString $ show b
   (VTuple xs) -> VString $ "(" ++ intercalate "," (map show xs) ++ ")" -- talvez seja meio gambiarra (estou fazendo para o p6 exclusivamente)
   VNada -> VString "nada"
+
+error' :: String -> a
+error' s = error ("[Em runtime] " ++ s)
