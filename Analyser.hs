@@ -5,20 +5,9 @@ import Control.Monad
 import Data.Functor
 import Control.Monad.Except
 import Control.Monad.State
-import Data.Maybe (fromMaybe)
+import Data.Maybe
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-
----------------------------------------
--- O que está sendo checado até então -
--- Em comandos:
--- -- Se as variáveis já foram declaradas
--- -- O ltipo e o rtipo de um atribuicao
--- Em expressoes:
--- -- Erros de tipo
--- -- Se as variaveis foram declaradas
----------------------------------------
----------------------------------------
 
 ---------------------------------------
 -- Helpers ---------------------------- 
@@ -66,7 +55,6 @@ data TabelaDeSimbolos = TS
   { ps :: Map.Map String (Pos, [Tipo])
   , fs :: Map.Map String (Maybe Pos, [Tipo], Tipo)
   , variaveis :: [Map.Map String (Pos, Tipo)]
-  -- Essa parte ficou bastante cheia de informacao:
   , ens :: Map.Map Tipo (Pos, [(Id, Tipo)])
   , es :: Map.Map Tipo (Pos, [(Id, Tipo)])
   }
@@ -104,11 +92,11 @@ cheque :: Programa -> CheqM ()
 cheque (Programa ps fs ens es cmds) = do
   mapM_ addEnum ens
   mapM_ addEstrutura es
-  mapM_ addProcedimento ps -- Adiciona todos os procedimentos na tabela de símbolos
-  mapM_ addFuncao fs -- Adiciona as funções
-  mapM_ chequeComando cmds -- Checa o escopo externo
-  mapM_ chequeProcedimento ps -- Checa os procedimentos
-  mapM_ chequeFuncao fs -- Checa as funções
+  mapM_ addProcedimento ps
+  mapM_ addFuncao fs
+  mapM_ chequeComando cmds
+  mapM_ chequeProcedimento ps
+  mapM_ chequeFuncao fs
 
 addFuncao :: FuncaoR -> CheqM ()
 addFuncao f@(FuncaoR pos (IdR _ nome) pars tipo _)
@@ -255,6 +243,7 @@ chequeComando cmd =
       noivoTipo <- chequeExpr noivo 
       case noivoTipo of
         (TId _) -> mapM_ (chequeBraco noivoTipo) bracos
+        TQualquer -> mapM_ chequeComando (concatMap snd bracos)
         _ -> throwError (TipoNaoIndexavel noivoTipo)
 
 chequeBraco :: Tipo -> (Padrao, [Comando]) -> CheqM ()
@@ -322,8 +311,7 @@ chequeAtribuicao atribuendo rvalue = do
 chequeUnc :: (Expr, [Comando]) -> CheqM ()
 chequeUnc (e, cmds) = do
   t1 <- chequeExpr e
-  unless (t1 == TBool)
-    (comContexto e (throwError $ ErroDeTipo TBool t1))
+  chequeTipos TBool t1
   mapM_ chequeComando cmds
 
 -- A parte de expressões tá complicada. Boa sorte!
@@ -390,6 +378,37 @@ chequeExpr' (EChamada _ (IdR _ nome) attrs) = do
     (throwError (NumeroIncorretoDeParametros l1 l2))
   mapM_ (uncurry chequeTipos) (zip pars attrs')
   return tipo
+
+chequeExpr' (EAcesso _ (IdR _ nome) campo) = do
+  tipo <- getVar nome
+  es <- gets es
+  case tipo of
+    (TId _) -> 
+      case Map.lookup tipo es of
+        Just (_, campos) -> 
+          case lookup campo campos of
+            Just tipo' -> return tipo'
+            Nothing -> throwError (CampoNaoExiste tipo campo)
+
+        Nothing -> throwError (TipoNaoIndexavel tipo)
+
+    TQualquer -> pure TQualquer
+    _ -> throwError (TipoNaoIndexavel tipo)
+
+chequeExpr' (EEnum _ enumIdent variante mvalor) = do
+  let enum = TId enumIdent
+  mtipo <- mapM chequeExpr' mvalor
+  ens <- gets ens
+  case Map.lookup enum ens of
+    Just (_, campos) ->
+      case (lookup variante campos, mtipo) of
+        (Just TNada, Nothing) -> pure enum
+        (Just t, Nothing) -> throwError (ErroDeTipo t TNada)
+        (Nothing, Nothing) -> pure enum
+        (Nothing, Just t) -> throwError (ErroDeTipo TNada t)
+        (Just t, Just t') -> chequeTipos t t'
+
+    Nothing -> throwError (TipoNaoIndexavel enum)
 
 chequeUnOp :: OpUn -> Tipo -> CheqM Tipo
 chequeUnOp op t = do

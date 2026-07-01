@@ -10,3 +10,19 @@ FUNCAO obter_tamanho(l :: [Qualquer]) -> Int:
 FIM_FUNCAO.
 
 IMPRIMA (obter_tamanho([1,2,3,4,5,6]));
+
+ENUM cor:
+  verde,
+  vermelho,
+  amarelo
+FIM_ENUM.
+
+INICIALIZE x :: Qualquer COM 3;
+
+x = cor::verde;
+
+CASAMENTO x:
+  verde, FAÇA:
+    IMPRIMA x;
+  FIM_FAÇA.
+FIM_CASAMENTO.
