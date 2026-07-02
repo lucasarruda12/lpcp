@@ -1,7 +1,6 @@
 module Interpreter.Comando where
 
 import Control.Monad.State
-import Control.Monad.Except
 import Data.Functor
 import Data.List (intercalate)
 import Text.Read (readMaybe)
@@ -9,10 +8,8 @@ import Text.Read (readMaybe)
 import GHC.Float (float2Double, double2Float)
 
 import Interpreter.Basic
-import Interpreter.Erro
 
 import Repr
-import Parser (chamadaP)
 
 -- (>>=) quer dizer: a coisa da esquerda gera valor. Pegue esse valor e use como argumento na coisa da direta
 -- (>>) quer dizer: a coisa da esquerda gera valor. Ignore esse valor e retorne seja lá o que a coisa da direita retornar.
@@ -409,6 +406,3 @@ evalOpUn (Conv TString) v = Just $ case v of
   (VBool b) -> VString $ show b
   (VTuple xs) -> VString $ "(" ++ intercalate "," (map show xs) ++ ")" -- talvez seja meio gambiarra (estou fazendo para o p6 exclusivamente)
   VNada -> VString "nada"
-
-error' :: String -> a
-error' s = error ("[Em runtime] " ++ s)

@@ -25,5 +25,8 @@ CASAMENTO x:
   verde, FAÇA:
     IMPRIMA x;
   FIM_FAÇA.
+  pipoca, FAÇA:
+    IMPRIMA "oi!";
+  FIM_FAÇA.
 FIM_CASAMENTO.
 

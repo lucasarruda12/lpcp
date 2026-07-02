@@ -3,10 +3,8 @@ module Interpreter (run) where
 import Control.Monad.State
 import Control.Monad.Except
 import Control.Monad
-import qualified Data.Map as Map
 
 import Interpreter.Basic
-import Interpreter.Erro
 import Interpreter.Comando
 
 import Repr
@@ -19,8 +17,7 @@ evalPrograma (Programa ps fs ens es cs) = do
     , ens = ens
     , es = es
     , escopo = "main" } 
-  evalCmds cs
-  pure ()
+  void (evalCmds cs)
 
 run :: Programa -> Bool -> IO ()
 run p debug = do

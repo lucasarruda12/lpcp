@@ -6,7 +6,6 @@ import Parser
 import Interpreter
 import Analyser
 import Control.Monad
-import Data.Foldable
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 
