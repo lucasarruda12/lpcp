@@ -85,7 +85,7 @@ getRaw nome = do
   ces <- gets cadeia_estatica
   getRaw' (scp:ces) mem
   where
-    getRaw' []     _ = throwError $ UndefinedVariable (getPos nome)
+    getRaw' [] _ = error' ("Variável " ++ show nome ++ " não foi encontrada.")
     getRaw' (e:es) mem = case Map.lookup (e, nome) mem of
       Just (v:_) -> return v
       _ -> getRaw' es mem
@@ -97,11 +97,11 @@ getValue nome = do
   ces <- gets cadeia_estatica
   getValue' (scp:ces) mem
   where
-    getValue' []     _ = error ("Não encontrei " ++ show nome)
+    getValue' []     _ = error' ("Variável " ++ show nome ++ " não foi encontrada.")
     getValue' (e:es) mem = case Map.lookup (e, nome) mem of
       Just ((VRef endereco):_) -> case Map.lookup endereco mem of
         Just (v:_) -> return v
-        Nothing -> throwError FaltaImplementar
+        Nothing -> error' ("A referência armazenada na variável " ++ show nome ++ " aponta para um endereço inválido.")
       Just (v:_) -> return v
       _ -> getValue' es mem
 
@@ -117,7 +117,7 @@ modificarVar nome valor = do
           -> am { memoria = Map.adjust (\(_:vs) -> valor:vs) endereco (memoria am) }
       _ ->
         modify $ \am -> am {memoria = Map.insert (e, nome) (valor:vs) mem}
-    _ -> throwError (UndefinedVariable $ getPos nome)
+    _ -> error' ("Não é possível modificar a variável " ++ show nome ++ " porque ela não foi declarada.")
 
 resolveVar :: Id -> EvalM Escopo
 resolveVar nome = do
@@ -127,7 +127,7 @@ resolveVar nome = do
   resolve (scp : ces) mem
   where 
     resolve :: [Escopo] -> Map.Map (Escopo, Id) [Valor] -> EvalM Escopo
-    resolve [] _ = throwError (UndefinedVariable $ getPos nome)
+    resolve [] _ = error' ("Não foi possível localizar a variável " ++ show nome ++ " em nenhum escopo.")
     resolve (e:es) mem = case Map.lookup (e, nome) mem of
       Nothing    -> resolve es mem
       Just (v:_) -> return e
@@ -158,7 +158,7 @@ getProc nome = do
   ps <- gets ps
   case lookup nome ps of
     Just p -> return p
-    Nothing -> throwError $ UndefinedVariable (getPos nome)
+    Nothing -> error' ("Procedimento " ++ show nome ++ " não foi encontrado.")
   where
     lookup :: Id -> [ProcedimentoR] -> Maybe ProcedimentoR
     lookup name (p@(ProcedimentoR _ name' _ _) : ps)
@@ -171,7 +171,7 @@ getFunc nome = do
   fs <- gets fs
   case lookup nome fs of
     Just f -> return f
-    Nothing -> throwError $ UndefinedVariable (getPos nome)
+    Nothing -> error' ("Função " ++ show nome ++ " não foi encontrada.")
   where
     lookup :: Id -> [FuncaoR] -> Maybe FuncaoR
     lookup name (f@(FuncaoR _ name' _ _ _) : fs)
@@ -179,3 +179,5 @@ getFunc nome = do
       | otherwise = lookup name fs
     lookup _ [] = Nothing
 
+error' :: String -> a
+error' s = error ("[Em runtime] " ++ s)
